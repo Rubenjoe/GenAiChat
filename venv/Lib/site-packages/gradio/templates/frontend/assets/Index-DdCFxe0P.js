@@ -1,0 +1,1 @@
+import{Ut as e,Wt as t,ht as n,i as r}from"./index-DZobeNVa.js";import{t as i}from"./src-Dl2nhAat.js";import"./core-CAXGlMNg.js";var a=new Set([`$$slots`,`$$events`,`$$legacy`]);function o(o,s){t(s,!0);let c=new i(r(s,a));n(()=>{c.props.value&&c.dispatch(`change`)}),e()}export{o as default};

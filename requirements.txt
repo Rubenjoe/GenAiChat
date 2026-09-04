@@ -1,0 +1,8 @@
+openai
+elevenlabs
+langchain
+langchain-core
+langchain-community
+gradio
+requests
+python-dotenv

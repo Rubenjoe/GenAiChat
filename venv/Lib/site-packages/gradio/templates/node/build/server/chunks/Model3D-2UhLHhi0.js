@@ -1,0 +1,8 @@
+import { h, V as Ve, l as z, _, S as Se, i as ie } from './src3-h7ZBftxa.js';
+import './async-Cv1-GZGV.js';
+import { d as derived, f as attr } from './renderer-Dic3PuWn.js';
+
+function s(e){return {get renderer(){},get data(){},get gsplat_component(){},get babylon_component(){}}}function c(c,l){c.component(c=>{let{value:u,display_mode:d=`solid`,clear_color:f=[0,0,0,0],label:p=``,show_label:m,i18n:h$1,zoom_speed:g=1,pan_speed:_$1=1,camera_position:v=[null,null,null],has_change_history:y=false}=l,b=s(),x=derived(()=>b.gsplat_component),S=derived(()=>b.babylon_component);h(c,{show_label:m,Icon:z,label:p||h$1(`3D_model.3d_model`)}),c.push(`<!----> `),u?(c.push(`<!--[0-->`),c.push(`<div class="model3D svelte-pnaihf" data-testid="model3d">`),Ve(c,{children:e=>{b.renderer===`babylon`?(e.push(`<!--[0-->`),_(e,{Icon:Se,label:`Undo`,onclick:()=>void 0,disabled:!y})):e.push(`<!--[-1-->`),e.push(`<!--]--> <a${attr(`href`,u.url)}${attr(`target`,window.__is_colab__?`_blank`:null)}${attr(`download`,window.__is_colab__?null:u.orig_name||u.path)} data-testid="model3d-download-link">`),_(e,{Icon:ie,label:h$1(`common.download`)}),e.push(`<!----></a>`);}}),c.push(`<!----> `),b.renderer===`gsplat`&&x()?(c.push(`<!--[0-->`),x()?(c.push(`<!--[-->`),x()(c,{value:u,zoom_speed:g,pan_speed:_$1}),c.push(`<!--]-->`)):(c.push(`<!--[!-->`),c.push(`<!--]-->`))):b.renderer===`babylon`&&S()?(c.push(`<!--[1-->`),S()?(c.push(`<!--[-->`),S()(c,{value:u,display_mode:d,clear_color:f,camera_position:v,zoom_speed:g,pan_speed:_$1,data:b.data}),c.push(`<!--]-->`)):(c.push(`<!--[!-->`),c.push(`<!--]-->`))):c.push(`<!--[-1-->`),c.push(`<!--]--></div>`)):c.push(`<!--[-1-->`),c.push(`<!--]-->`);});}
+
+export { c, s };
+//# sourceMappingURL=Model3D-2UhLHhi0.js.map

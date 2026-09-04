@@ -1,0 +1,1 @@
+import{J as e,X as t,Xt as n,k as r,mt as i,r as a,z as o}from"./index-DZobeNVa.js";import"./core-CAXGlMNg.js";var s=t(`<div></div>`);function c(t,c){let l=a(c,`selected`,3,!1);var u=s();let d;o(u,()=>c.value,!0),n(u),i(()=>d=r(u,1,`prose svelte-s7j0w2`,null,d,{table:c.type===`table`,gallery:c.type===`gallery`,selected:l()})),e(t,u)}export{c as default};
