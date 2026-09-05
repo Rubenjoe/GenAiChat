@@ -1,6 +1,6 @@
-openai
-elevenlabs
 fastapi
 uvicorn
 python-dotenv
+openai
+elevenlabs
 requests

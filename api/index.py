@@ -1,5 +1,5 @@
 """
-Vercel entry point for Celcia AI FastAPI application
+Vercel entry point for Celcia AI FastAPI application.
 """
 import sys
 from pathlib import Path
@@ -8,8 +8,8 @@ from pathlib import Path
 backend_dir = Path(__file__).parent.parent / "backend"
 sys.path.insert(0, str(backend_dir))
 
-# Import the FastAPI app from backend/main.py
-from main import app
+# Import the FastAPI app from backend.main
+from backend.main import app
 
 # Vercel will use this 'app' object for serverless deployment
 # The FastAPI app is already configured with all routes
