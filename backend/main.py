@@ -104,15 +104,7 @@ app.add_middleware(
 # Get the correct paths for static files
 backend_dir = Path(__file__).parent
 project_root = backend_dir.parent
-frontend_dir = project_root / "frontend"
-
-# Mount static files for frontend (works in local dev)
-# For Vercel, static files are handled via vercel.json routing
-try:
-    app.mount("/static", StaticFiles(directory=str(frontend_dir)), name="static")
-except Exception:
-    # Static files might not be available in all contexts
-    pass
+index_path = project_root / "index.html"
 
 # Data models
 class Message(BaseModel):
@@ -132,11 +124,11 @@ class VoiceRequest(BaseModel):
 
 @app.get("/")
 async def serve_frontend():
-    """Serve the main HTML file"""
+    """Serve the main HTML file (fallback for local development)"""
     try:
-        return FileResponse(str(frontend_dir / "index.html"))
+        return FileResponse(str(index_path))
     except FileNotFoundError:
-        # For Vercel deployment, the frontend might be served differently
+        # For Vercel deployment, the frontend is served via vercel.json routing
         return JSONResponse(
             status_code=404,
             content={"error": "Frontend not found", "message": "HTML file not accessible"}
