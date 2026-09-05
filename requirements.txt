@@ -1,8 +1,6 @@
 openai
 elevenlabs
-langchain
-langchain-core
-langchain-community
-gradio
-requests
+fastapi
+uvicorn
 python-dotenv
+requests

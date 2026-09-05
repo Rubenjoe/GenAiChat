@@ -1,18 +1,22 @@
-# 🤖 GenAiChat
+# 🤖 Celcia AI
 
-A conversational AI chatbot built with **Google Gemini**, **ElevenLabs Text-to-Speech**, and **Gradio**.
+A premium AI chatbot with a professional dark interface, powered by **OpenRouter** and **ElevenLabs Text-to-Speech**.
 
-GenAiChat combines a generative AI model with voice synthesis to create a simple conversational assistant that can understand user prompts, maintain short-term conversation context, and generate spoken responses.
+Celcia AI combines generative AI with voice synthesis in a polished, ChatGPT-like interface featuring a minimalist dark aesthetic, subtle star-field background, and professional conversation management.
 
 ## ✨ Features
 
-- 💬 Conversational AI powered by **Google Gemini**
-- 🧠 Short-term conversation memory
-- 🔊 Text-to-speech generation using **ElevenLabs**
-- 🌐 Interactive web interface using **Gradio**
-- ⚡ Lightweight Python implementation
-- 🚀 Designed for local use and Hugging Face Spaces deployment
-- 🧩 Separate text-generation and voice-generation components
+- 💬 **Conversational AI** powered by OpenRouter (GPT-3.5 Turbo and other models)
+- 🎨 **Premium dark UI** with pitch-black background and subtle star-field animation
+- 🔊 **Text-to-speech** using ElevenLabs with "Listen" functionality
+- 💾 **Persistent chat history** with localStorage
+- 📋 **Copy functionality** for AI responses
+- 🔄 **Regenerate responses** for alternative answers
+- ➕ **New chat** management with conversation switching
+- � **Responsive design** for desktop, tablet, and mobile
+- ⚡ **FastAPI backend** with modern async architecture
+- 🎯 **Markdown support** for rich text responses
+- 🛡️ **Secure API key management** with environment variables
 
 ## 🏗️ Architecture
 
@@ -23,30 +27,23 @@ GenAiChat combines a generative AI model with voice synthesis to create a simple
                             │
                             ▼
                    ┌──────────────────┐
-                   │   Gradio Chat    │
-                   │       UI         │
+                   │  HTML/CSS/JS UI  │
+                   │   (Celcia Design)│
                    └────────┬─────────┘
                             │
                             ▼
                    ┌──────────────────┐
-                   │   Google Gemini  │
-                   │  Generative AI   │
+                   │   FastAPI        │
+                   │   Backend        │
                    └────────┬─────────┘
                             │
-                     Generated Text
-                            │
-                            ▼
-                   ┌──────────────────┐
-                   │    ElevenLabs    │
-                   │  Text-to-Speech  │
-                   └────────┬─────────┘
-                            │
-                       Audio Output
-                            │
-                            ▼
-                   ┌──────────────────┐
-                   │      User        │
-                   └──────────────────┘
+                ┌───────────┴───────────┐
+                │                       │
+                ▼                       ▼
+        ┌───────────────┐      ┌───────────────┐
+        │  OpenRouter   │      │  ElevenLabs   │
+        │   (AI API)    │      │  (Voice API)  │
+        └───────────────┘      └───────────────┘
 ```
 
 ## 🛠️ Tech Stack
@@ -54,21 +51,34 @@ GenAiChat combines a generative AI model with voice synthesis to create a simple
 | Technology | Purpose |
 |---|---|
 | Python | Core application logic |
-| Google Gemini | Generative AI responses |
+| FastAPI | High-performance web framework |
+| OpenRouter | Generative AI responses |
 | ElevenLabs | Text-to-speech generation |
-| Gradio | Web-based chatbot interface |
-| LangChain | Prompt and memory components used in the original implementation |
-| Requests | Direct HTTP API communication |
+| HTML/CSS/JavaScript | Modern frontend interface |
+| OpenAI SDK | OpenRouter API compatibility |
+| python-dotenv | Environment variable management |
 
 ## 📁 Project Structure
 
 ```text
 GenAiChat/
 │
-├── app.py
-├── requirements.txt
-├── README.md
-└── .gitattributes
+├── backend/
+│   ├── main.py           # FastAPI application
+│   ├── ai.py             # OpenRouter integration
+│   └── voice.py          # ElevenLabs integration
+│
+├── frontend/
+│   ├── index.html        # Main HTML structure
+│   ├── style.css         # Celcia design styling
+│   └── script.js         # Frontend logic
+│
+├── audio_outputs/        # Generated audio files
+├── .env                  # API keys (not in git)
+├── .env.example          # Environment template
+├── requirements.txt      # Python dependencies
+├── README.md             # This file
+└── .gitignore           # Git ignore rules
 ```
 
 ## 🚀 Getting Started
@@ -106,109 +116,207 @@ pip install -r requirements.txt
 
 ### 4. Configure API credentials
 
-The application requires credentials for Google Gemini and ElevenLabs.
-
-For local development, use environment variables rather than hard-coding credentials in source code:
+Create a `.env` file in the project root based on `.env.example`:
 
 ```env
-GEMINI_API_KEY=your_gemini_api_key
-ELEVENLABS_API_KEY=your_elevenlabs_api_key
-ELEVENLABS_VOICE_ID=your_elevenlabs_voice_id
+OPENROUTER_API_KEY=your_openrouter_api_key_here
+ELEVENLABS_API_KEY=your_elevenlabs_api_key_here
+ELEVENLABS_VOICE_ID=21m00Tcm4TlvDq8ikWAM
 ```
 
-**Never commit API keys or secrets to GitHub.**
+**⚠️ Important:** Never commit `.env` file or API keys to GitHub.
 
 ### 5. Run the application
 
 ```bash
-python app.py
+python backend/main.py
 ```
 
-Gradio will start the application and provide a local web interface.
+The application will start on `http://localhost:8000`
 
-## 💬 Example Prompts
+### 6. Access the application
 
-Try prompts such as:
-
-```text
-How are you doing?
-
-Tell me a short story.
-
-Explain quantum computing in simple terms.
-
-What are some interesting facts about space?
-
-Explain machine learning to me like I'm a beginner.
+Open your browser and navigate to:
 ```
+http://localhost:8000
+```
+
+## 🎨 Design Features
+
+### Visual Design
+- **Pitch-black background** (#020202) with subtle star-field animation
+- **Minimal futuristic aesthetic** inspired by ChatGPT and Grok
+- **Professional typography** using Bricolage Grotesque, Space Grotesk, and Inter fonts
+- **Low-contrast UI elements** for reduced eye strain
+- **Clean, spacious layout** with centered conversation content
+
+### UI Components
+- **Left sidebar** (260px) with conversation history
+- **Rounded modern composer** (860px width, 76px height)
+- **Minimal top navigation** with status indicators
+- **Message actions** (Listen, Copy, Regenerate)
+- **Responsive design** for all screen sizes
+
+### Typography
+- **Brand:** Bricolage Grotesque Bold (26px)
+- **Headings:** Bricolage Grotesque (600 weight)
+- **UI Labels:** Space Grotesk (400-500 weight)
+- **Body Text:** Inter (400 weight, 17px)
+
+## 💬 Usage
+
+### Starting a Conversation
+1. Type your message in the composer at the bottom
+2. Press Enter to send (Shift+Enter for new line)
+3. Watch the AI response appear with a typing indicator
+4. Use message actions for additional functionality
+
+### Message Actions
+- **◉ Listen:** Generate and play audio using ElevenLabs
+- **Copy:** Copy the AI response to clipboard
+- **↻ Regenerate:** Get an alternative response for the same message
+
+### Conversation Management
+- **+ New chat:** Start a fresh conversation
+- **Sidebar:** Switch between recent conversations
+- **Auto-titling:** First message becomes conversation title
+- **Persistence:** Conversations saved to localStorage
+
+## 🔧 Configuration
+
+### Changing AI Model
+Edit `backend/ai.py` to change the OpenRouter model:
+
+```python
+self.model_name = "openai/gpt-3.5-turbo"  # Default
+# Available models: "anthropic/claude-3.5-sonnet", "google/gemini-pro", etc.
+```
+
+### Changing Voice
+Edit your `.env` file to use a different ElevenLabs voice:
+
+```env
+ELEVENLABS_VOICE_ID=your_voice_id_here
+```
+
+Find voice IDs in the [ElevenLabs documentation](https://elevenlabs.io/docs/voices).
 
 ## 🧠 Conversation Memory
 
-The chatbot maintains a lightweight in-memory conversation history. Previous user and assistant messages are incorporated into subsequent prompts so the model can maintain context across multiple turns.
-
-The original implementation limits stored conversation history to recent messages to reduce prompt size and avoid excessive token usage.
+- Conversations are stored in browser localStorage
+- Maximum 20 recent conversations preserved
+- Each conversation maintains full message history
+- Context is sent to OpenRouter for coherent responses
 
 ## 🔊 Voice Generation
 
-After Gemini generates a text response, the application sends that text to ElevenLabs and generates an MP3 audio response.
+- Click "◉ Listen" on any AI response
+- Audio is generated using ElevenLabs API
+- MP3 files are temporarily stored in `audio_outputs/`
+- Audio plays automatically in the browser
 
-The project contains two ElevenLabs approaches:
+## 🌐 API Endpoints
 
-- ElevenLabs Python SDK integration
-- Direct ElevenLabs HTTP API integration
+### POST /api/chat
+Generate AI response
 
-The HTTP implementation is kept as an alternative approach when direct API requests are preferred.
-
-## 🌐 Hugging Face Spaces
-
-The repository is configured for **Gradio-based Hugging Face Spaces** deployment.
-
-When deploying publicly, configure your credentials through **Hugging Face Secrets** rather than placing API keys in `app.py`.
-
-Recommended secrets:
-
-```text
-GEMINI_API_KEY
-ELEVENLABS_API_KEY
-ELEVENLABS_VOICE_ID
+**Request:**
+```json
+{
+    "conversation_id": "optional_id",
+    "messages": [
+        {"role": "user", "content": "Your message"}
+    ]
+}
 ```
+
+**Response:**
+```json
+{
+    "message": "AI response",
+    "conversation_id": "conversation_id"
+}
+```
+
+### POST /api/voice
+Generate audio from text
+
+**Request:**
+```json
+{
+    "text": "Text to convert to speech"
+}
+```
+
+**Response:** Audio file (MP3)
+
+### GET /api/health
+Health check endpoint
+
+**Response:**
+```json
+{
+    "status": "healthy",
+    "service": "Celcia AI"
+}
+```
+
+## 📱 Responsive Design
+
+- **Desktop:** Full sidebar, centered conversation (720px max width)
+- **Tablet:** Narrower sidebar, responsive composer
+- **Mobile:** Collapsible sidebar, full-width conversation
+
+## � Security
+
+- API keys stored in environment variables
+- No secrets exposed to frontend
+- CORS configured for local development
+- Input sanitization for Markdown rendering
+- Audio files generated in secure directory
 
 ## ⚠️ Current Limitations
 
-This project was created as an experimental AI chatbot and still has areas that can be improved:
+- Conversation history limited to localStorage (client-side only)
+- No user authentication or multi-user support
+- No database persistence (localStorage only)
+- Basic error handling for API failures
+- Audio files not automatically cleaned up
 
-- Conversation memory is stored only in application memory and is not persistent.
-- There is no user authentication.
-- There is no database for storing conversations.
-- API usage and rate limits are not tracked.
-- Error handling for external services can be made more granular.
-- The current voice-generation pipeline creates an audio file but the main Gradio callback currently returns the text response rather than exposing the generated audio as a dedicated UI output.
-- Some LangChain imports/components remain from the original implementation even though the current Gemini response path uses a custom wrapper around the Google SDK.
+## � Future Improvements
 
-## 🔮 Future Improvements
+- 🗄️ Database integration for conversation persistence
+- � User authentication and separate user spaces
+- 🎤 Speech-to-text input for voice commands
+- 🌍 Multi-language support for voice
+- 📊 Usage analytics and token tracking
+- 🧪 Automated testing suite
+- 🚀 Production deployment optimization
+- � Push notifications for long responses
+- 📎 File upload and document analysis
+- 🎨 Theme customization options
 
-Potential next steps include:
+## 🐛 Troubleshooting
 
-- 🎙️ Return generated ElevenLabs audio directly in the Gradio interface
-- 🎤 Add speech-to-text input
-- 🧠 Add persistent conversation history
-- 👤 Add user authentication and separate chat sessions
-- 💾 Store conversations in a database
-- ⚙️ Make Gemini and ElevenLabs models configurable
-- 🌍 Add multilingual voice support
-- 📱 Improve the UI and responsiveness
-- 🛡️ Move all configuration to secure environment variables/secrets
-- 📊 Add API/token usage monitoring
-- 🧪 Add automated tests
-- 🚀 Improve production deployment and observability
+### Application won't start
+- Ensure virtual environment is activated
+- Check that all dependencies are installed
+- Verify `.env` file exists with valid API keys
 
-## 🔐 Security
+### API errors
+- Verify OpenRouter API key is valid and has credits
+- Check ElevenLabs API key and voice ID
+- Ensure internet connection is stable
 
-API credentials should never be hard-coded into application source code.
+### Audio not playing
+- Check browser audio permissions
+- Verify ElevenLabs API key is valid
+- Check browser console for errors
 
-Use environment variables for local development and platform-managed secrets for cloud deployments.
-
-If credentials have previously been committed to a public repository, revoke/rotate them and replace them with new credentials.
+### Styling issues
+- Clear browser cache
+- Ensure all frontend files are present
+- Check browser compatibility
 
 ## 📜 License
 
@@ -222,4 +330,4 @@ GitHub: https://github.com/Rubenjoe
 
 ---
 
-> A lightweight experiment combining generative AI and voice synthesis into a conversational interface.
+> Celcia AI — A premium personal AI assistant with professional design and voice capabilities.

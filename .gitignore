@@ -13,6 +13,7 @@ __pycache__/
 
 # Generated audio files
 output_audio_*.mp3
+audio_outputs/
 
 # OS files
 .DS_Store
