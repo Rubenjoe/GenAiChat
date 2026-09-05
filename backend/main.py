@@ -1,8 +1,9 @@
 """
 Celcia AI FastAPI backend.
 
-Routes:
-  /              -> Celcia frontend (index.html)
+Routes are defined relative to the function mount point. On Vercel this file is
+exposed via api/index.py, so the public paths become:
+  /api/          -> Celcia frontend (Vercel also serves static root files)
   /api/health    -> health check
   /api/chat      -> OpenRouter chat completion
   /api/voice     -> ElevenLabs TTS (returns audio/mpeg bytes)
@@ -10,33 +11,26 @@ Routes:
 from contextlib import asynccontextmanager
 from pathlib import Path
 import os
-import sys
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, Response
-from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from typing import List, Optional
 
-# Make backend/ importable for both local and Vercel contexts
-BACKEND_DIR = Path(__file__).resolve().parent
-PROJECT_ROOT = BACKEND_DIR.parent
-if str(BACKEND_DIR) not in sys.path:
-    sys.path.insert(0, str(BACKEND_DIR))
-
-from ai import OpenRouterAI
+from .ai import OpenRouterAI
 
 ai_service = OpenRouterAI()
 
-# Lazy voice import: only needed for /api/voice. This lets the app boot even when
+# Lazy voice import: only needed for /voice. This lets the app boot even when
 # the elevenlabs package is unavailable in a stripped verification environment.
 _voice_service = None
+
 
 def get_voice_service():
     global _voice_service
     if _voice_service is None:
-        from voice import ElevenLabsVoice
+        from .voice import ElevenLabsVoice
         _voice_service = ElevenLabsVoice()
     return _voice_service
 
@@ -57,18 +51,17 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Celcia AI", lifespan=lifespan)
 
 # CORS: allow same-origin (Vercel) and local dev origins
-origins = ["*"]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-INDEX_PATH = PROJECT_ROOT / "index.html"
+INDEX_PATH = Path(__file__).resolve().parent.parent / "index.html"
 
-# Serve static root assets in local dev. Vercel serves them natively in production.
+# Static root assets — served here for local dev; Vercel serves them natively in production.
 static_files = {
     "style.css": "text/css",
     "script.js": "application/javascript",
@@ -76,7 +69,7 @@ static_files = {
 }
 
 for filename, media_type in static_files.items():
-    file_path = PROJECT_ROOT / filename
+    file_path = Path(__file__).resolve().parent.parent / filename
 
     @app.get(f"/{filename}")
     async def _serve_static(file_path=file_path, media_type=media_type):
@@ -106,6 +99,7 @@ class VoiceRequest(BaseModel):
 
 @app.get("/")
 async def serve_frontend():
+    """Serve the frontend HTML (fallback for local dev and Vercel function root)."""
     if INDEX_PATH.exists():
         return FileResponse(str(INDEX_PATH))
     return JSONResponse(
@@ -114,13 +108,15 @@ async def serve_frontend():
     )
 
 
-@app.get("/api/health")
+@app.get("/health")
 async def health_check():
-    return {"status": "healthy", "service": "Celcia AI"}
+    """Health check endpoint."""
+    return {"status": "ok"}
 
 
-@app.post("/api/chat", response_model=ChatResponse)
+@app.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
+    """Generate AI response using OpenRouter."""
     try:
         user_message = request.messages[-1].content if request.messages else ""
         history = [msg.model_dump() for msg in request.messages[:-1]]
@@ -133,8 +129,9 @@ async def chat(request: ChatRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/api/voice")
+@app.post("/voice")
 async def generate_voice(request: VoiceRequest):
+    """Generate audio from text using ElevenLabs. Returns audio/mpeg bytes."""
     try:
         audio_bytes = get_voice_service().generate_audio(request.text)
         return Response(
