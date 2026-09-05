@@ -11,10 +11,13 @@ __pycache__/
 *.py[cod]
 *$py.class
 
-# Generated audio files
+# Generated audio files (not used in serverless)
 output_audio_*.mp3
 audio_outputs/
 
 # OS files
 .DS_Store
 Thumbs.db
+
+# Vercel
+.vercel

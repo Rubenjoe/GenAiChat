@@ -309,18 +309,46 @@ async function listenToResponse(text) {
         });
         
         if (!response.ok) {
-            throw new Error('Failed to generate audio');
+            // Try to parse error response
+            let errorMessage = 'Voice playback is currently unavailable.';
+            
+            try {
+                const errorData = await response.json();
+                if (errorData.message) {
+                    errorMessage = errorData.message;
+                }
+            } catch (e) {
+                // If error response is not JSON, use status-based message
+                if (response.status === 404) {
+                    errorMessage = 'The configured voice is not available. Please check your ElevenLabs voice configuration.';
+                } else if (response.status === 401) {
+                    errorMessage = 'Invalid ElevenLabs API key. Please check your configuration.';
+                } else if (response.status === 402) {
+                    errorMessage = 'The selected voice may require payment. Try a different voice or check your ElevenLabs account.';
+                } else {
+                    errorMessage = 'Voice playback is currently unavailable. Please try again later.';
+                }
+            }
+            
+            showError(errorMessage);
+            return;
         }
         
+        // Handle audio response - serverless returns bytes directly
         const audioBlob = await response.blob();
         const audioUrl = URL.createObjectURL(audioBlob);
         
         const audio = new Audio(audioUrl);
         audio.play();
         
+        // Clean up the object URL after audio finishes playing
+        audio.addEventListener('ended', () => {
+            URL.revokeObjectURL(audioUrl);
+        });
+        
     } catch (error) {
         console.error('Error generating audio:', error);
-        showError('Failed to generate audio. Please try again.');
+        showError('Voice playback is currently unavailable. Please check your connection and try again.');
     }
 }
 
