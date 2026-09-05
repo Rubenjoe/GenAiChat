@@ -1,9 +1,6 @@
 import os
 import uuid
 from elevenlabs.client import ElevenLabs
-from dotenv import load_dotenv
-
-load_dotenv()
 
 class ElevenLabsVoice:
     """

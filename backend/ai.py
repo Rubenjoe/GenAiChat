@@ -1,8 +1,5 @@
 import os
 from openai import OpenAI
-from dotenv import load_dotenv
-
-load_dotenv()
 
 class OpenRouterAI:
     def __init__(self):
@@ -18,6 +15,9 @@ class OpenRouterAI:
         """
         Generate AI response using OpenRouter API
         """
+        if not self.api_key:
+            raise ValueError("OPENROUTER_API_KEY is not configured")
+            
         if conversation_history is None:
             conversation_history = []
         

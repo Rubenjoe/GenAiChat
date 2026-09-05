@@ -18,14 +18,19 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 from pydantic import BaseModel
 from typing import List, Optional
 
-from .ai import OpenRouterAI
+# Lazy AI import: only initialize when needed to prevent import-time crashes
+_ai_service = None
 
-ai_service = OpenRouterAI()
+def get_ai_service():
+    global _ai_service
+    if _ai_service is None:
+        from .ai import OpenRouterAI
+        _ai_service = OpenRouterAI()
+    return _ai_service
 
 # Lazy voice import: only needed for /voice. This lets the app boot even when
 # the elevenlabs package is unavailable in a stripped verification environment.
 _voice_service = None
-
 
 def get_voice_service():
     global _voice_service
@@ -108,19 +113,19 @@ async def serve_frontend():
     )
 
 
-@app.get("/health")
+@app.get("/api/health")
 async def health_check():
     """Health check endpoint."""
     return {"status": "ok"}
 
 
-@app.post("/chat", response_model=ChatResponse)
+@app.post("/api/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
     """Generate AI response using OpenRouter."""
     try:
         user_message = request.messages[-1].content if request.messages else ""
         history = [msg.model_dump() for msg in request.messages[:-1]]
-        response = ai_service.generate_response(user_message, history)
+        response = get_ai_service().generate_response(user_message, history)
         return ChatResponse(
             message=response,
             conversation_id=request.conversation_id or "default",
@@ -129,7 +134,7 @@ async def chat(request: ChatRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/voice")
+@app.post("/api/voice")
 async def generate_voice(request: VoiceRequest):
     """Generate audio from text using ElevenLabs. Returns audio/mpeg bytes."""
     try:
