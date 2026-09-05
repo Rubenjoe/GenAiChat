@@ -141,6 +141,18 @@ Open your browser and navigate to:
 http://localhost:8000
 ```
 
+### Deploy to Vercel
+
+1. Import this repository into Vercel with the project root set to the repository root.
+2. Add `OPENROUTER_API_KEY`, `ELEVENLABS_API_KEY`, and `ELEVENLABS_VOICE_ID` under **Settings → Environment Variables**.
+3. Deploy without changing the build command or output directory. `vercel.json` routes `/api/*` to the FastAPI function and serves the static frontend from the repository root.
+
+After deployment, verify the backend at `https://your-domain.vercel.app/api/health`. It should return:
+
+```json
+{"status": "ok"}
+```
+
 ## 🎨 Design Features
 
 ### Visual Design

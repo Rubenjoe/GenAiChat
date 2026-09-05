@@ -17,6 +17,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, Response
 from pydantic import BaseModel
 from typing import List, Optional
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Lazy AI import: only initialize when needed to prevent import-time crashes
 _ai_service = None

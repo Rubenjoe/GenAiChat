@@ -12,16 +12,16 @@
       "dest": "/api/index.py"
     },
     {
+      "src": "/",
+      "dest": "/index.html"
+    },
+    {
       "src": "/style.css",
       "dest": "/style.css"
     },
     {
       "src": "/script.js",
       "dest": "/script.js"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/$1"
     }
   ]
 }
