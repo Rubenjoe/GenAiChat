@@ -38,8 +38,8 @@ body {
     height: 100vh;
 }
 
-/* Star Field Background */
-.star-field {
+/* Atmospheric canvas background */
+#celcia-background {
     position: fixed;
     top: 0;
     left: 0;
@@ -47,20 +47,6 @@ body {
     height: 100%;
     pointer-events: none;
     z-index: 0;
-    background: radial-gradient(ellipse at bottom, #1a1a2e 0%, #020202 100%);
-}
-
-.star {
-    position: absolute;
-    background: white;
-    border-radius: 50%;
-    opacity: 0.3;
-    animation: twinkle 4s infinite ease-in-out;
-}
-
-@keyframes twinkle {
-    0%, 100% { opacity: 0.3; }
-    50% { opacity: 0.6; }
 }
 
 /* App Container */

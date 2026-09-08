@@ -20,30 +20,166 @@ const conversationSubtitle = document.getElementById('conversationSubtitle');
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
-    initializeStarField();
+    initializeCelciaBackground();
     loadConversations();
     setupEventListeners();
     autoResizeTextarea();
 });
 
-// Star Field Generation
-function initializeStarField() {
-    const starField = document.querySelector('.star-field');
-    const starCount = 150;
-    
-    for (let i = 0; i < starCount; i++) {
-        const star = document.createElement('div');
-        star.className = 'star';
-        
-        const size = Math.random() * 2 + 1;
-        star.style.width = `${size}px`;
-        star.style.height = `${size}px`;
-        star.style.left = `${Math.random() * 100}%`;
-        star.style.top = `${Math.random() * 100}%`;
-        star.style.animationDelay = `${Math.random() * 4}s`;
-        star.style.animationDuration = `${3 + Math.random() * 3}s`;
-        
-        starField.appendChild(star);
+// Lightweight canvas flow field background
+function initializeCelciaBackground() {
+    const canvas = document.getElementById('celcia-background');
+    if (!canvas || !canvas.getContext) return;
+
+    const context = canvas.getContext('2d');
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const particles = [];
+    const pointer = { x: 0, y: 0, active: false };
+    const lightFields = [
+        { x: 0.18, y: 0.25, radius: 0.7, color: 'rgba(72, 82, 130, 0.035)' },
+        { x: 0.82, y: 0.72, radius: 0.6, color: 'rgba(95, 74, 130, 0.028)' }
+    ];
+    let width = 0;
+    let height = 0;
+    let pixelRatio = 1;
+    let animationFrame = null;
+    let lastTime = 0;
+
+    function particleCount() {
+        return Math.min(
+            window.innerWidth < 768 ? 180 : 420,
+            Math.max(100, Math.round(window.innerWidth * window.innerHeight / 3200))
+        );
+    }
+
+    function resetParticles() {
+        particles.length = 0;
+        const count = particleCount();
+
+        for (let i = 0; i < count; i++) {
+            particles.push({
+                x: Math.random() * width,
+                y: Math.random() * height,
+                vx: 0,
+                vy: 0,
+                size: 0.45 + Math.random() * 1.15,
+                opacity: 0.16 + Math.random() * 0.34,
+                drift: Math.random() * Math.PI * 2,
+                tone: Math.random()
+            });
+        }
+    }
+
+    function resizeCanvas() {
+        width = window.innerWidth;
+        height = window.innerHeight;
+        pixelRatio = Math.min(window.devicePixelRatio || 1, 1.5);
+        canvas.width = Math.floor(width * pixelRatio);
+        canvas.height = Math.floor(height * pixelRatio);
+        canvas.style.width = `${width}px`;
+        canvas.style.height = `${height}px`;
+        context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+        resetParticles();
+        drawBackground(0);
+    }
+
+    function drawBackground(time) {
+        context.clearRect(0, 0, width, height);
+        context.fillStyle = '#020202';
+        context.fillRect(0, 0, width, height);
+
+        for (let i = 0; i < lightFields.length; i++) {
+            const field = lightFields[i];
+            const drift = time * (i === 0 ? 0.000035 : -0.000028);
+            const x = (field.x + Math.sin(drift + i) * 0.07) * width;
+            const y = (field.y + Math.cos(drift * 1.2 + i) * 0.06) * height;
+            const gradient = context.createRadialGradient(x, y, 0, x, y, width * field.radius);
+            gradient.addColorStop(0, field.color);
+            gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+            context.fillStyle = gradient;
+            context.fillRect(0, 0, width, height);
+        }
+    }
+
+    function drawFrame(time) {
+        const elapsed = lastTime ? Math.min(time - lastTime, 40) : 16;
+        const step = elapsed * 0.045;
+        const seconds = time * 0.001;
+        lastTime = time;
+
+        drawBackground(time);
+        context.globalCompositeOperation = 'lighter';
+
+        for (let i = 0; i < particles.length; i++) {
+            const particle = particles[i];
+            const nx = particle.x / width;
+            const ny = particle.y / height;
+            const wave = Math.sin(nx * 7 + seconds * 0.12 + particle.drift);
+            const crossWave = Math.cos(ny * 6 - seconds * 0.1 + particle.drift);
+            const angle = wave * 0.82 + crossWave * 0.46;
+            const targetVx = Math.cos(angle) * 0.38;
+            const targetVy = Math.sin(angle) * 0.38;
+
+            particle.vx += (targetVx - particle.vx) * 0.025;
+            particle.vy += (targetVy - particle.vy) * 0.025;
+
+            if (pointer.active) {
+                const dx = pointer.x - particle.x;
+                const dy = pointer.y - particle.y;
+                const distanceSquared = dx * dx + dy * dy;
+                if (distanceSquared < 90000) {
+                    const influence = (1 - distanceSquared / 90000) * 0.00035;
+                    particle.vx += dx * influence;
+                    particle.vy += dy * influence;
+                }
+            }
+
+            particle.x += particle.vx * step;
+            particle.y += particle.vy * step;
+
+            if (particle.x < -4) particle.x = width + 4;
+            if (particle.x > width + 4) particle.x = -4;
+            if (particle.y < -4) particle.y = height + 4;
+            if (particle.y > height + 4) particle.y = -4;
+
+            context.globalAlpha = particle.opacity;
+            context.fillStyle = particle.tone > 0.86 ? '#b8b9d8' : '#f1f1f4';
+            context.beginPath();
+            context.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+            context.fill();
+        }
+
+        context.globalCompositeOperation = 'source-over';
+        context.globalAlpha = 1;
+        if (!document.hidden) {
+            animationFrame = requestAnimationFrame(drawFrame);
+        }
+    }
+
+    function handleVisibilityChange() {
+        if (document.hidden) {
+            if (animationFrame) cancelAnimationFrame(animationFrame);
+            animationFrame = null;
+            lastTime = 0;
+        } else if (!reducedMotion && !animationFrame) {
+            animationFrame = requestAnimationFrame(drawFrame);
+        }
+    }
+
+    window.addEventListener('resize', resizeCanvas);
+    window.addEventListener('pointermove', (event) => {
+        pointer.x = event.clientX;
+        pointer.y = event.clientY;
+        pointer.active = true;
+    }, { passive: true });
+    window.addEventListener('pointerleave', () => {
+        pointer.active = false;
+    }, { passive: true });
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    resizeCanvas();
+    if (!reducedMotion) {
+        animationFrame = requestAnimationFrame(drawFrame);
     }
 }
 
