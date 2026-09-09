@@ -1,1 +1,0 @@
-import{J as e,K as t,X as n,Xt as r,k as i,mt as a,r as o,yt as s}from"./index-DZobeNVa.js";import"./core-CAXGlMNg.js";var c=n(`<div> </div>`);function l(n,l){let u=o(l,`selected`,3,!1);var d=c();let f;var p=s(d,!0);r(d),a(()=>{f=i(d,1,`svelte-j6qsyq`,null,f,{table:l.type===`table`,gallery:l.type===`gallery`,selected:u()}),t(p,l.value)}),e(n,d)}export{l as default};

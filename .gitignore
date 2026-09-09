@@ -21,6 +21,3 @@ Thumbs.db
 
 # Vercel
 .vercel
-
-# Gradio legacy
-.gradio/

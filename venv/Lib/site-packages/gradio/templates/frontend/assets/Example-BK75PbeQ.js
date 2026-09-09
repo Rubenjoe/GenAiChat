@@ -1,1 +1,0 @@
-import{$ as e,J as t,K as n,U as r,Y as i,bt as a,mt as o}from"./index-DZobeNVa.js";import"./core-CAXGlMNg.js";function s(s,c){var l=i(),u=a(l),d=r=>{var i=e();o(()=>n(i,c.title)),t(r,i)},f=r=>{var i=e();o(()=>n(i,`${c.x??``} x ${c.y??``}`)),t(r,i)};r(u,e=>{c.title?e(d):e(f,-1)}),t(s,l)}export{s as default};
