@@ -1,1 +1,0 @@
-import{i as e}from"./splatFileLoader-cGoNKHQ3.js";export{e as gaussianSplattingPixelShader};

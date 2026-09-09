@@ -63,15 +63,14 @@ Celcia AI combines generative AI with voice synthesis in a polished, ChatGPT-lik
 ```text
 GenAiChat/
 │
+├── index.html              # Main HTML structure
+├── style.css               # Celcia design styling
+├── script.js               # Frontend logic
+│
 ├── backend/
 │   ├── main.py           # FastAPI application
 │   ├── ai.py             # OpenRouter integration
 │   └── voice.py          # ElevenLabs integration
-│
-├── frontend/
-│   ├── index.html        # Main HTML structure
-│   ├── style.css         # Celcia design styling
-│   └── script.js         # Frontend logic
 │
 ├── audio_outputs/        # Generated audio files
 ├── .env                  # API keys (not in git)
