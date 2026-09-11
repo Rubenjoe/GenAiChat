@@ -13,10 +13,19 @@ from pathlib import Path
 import os
 
 from fastapi import FastAPI, HTTPException
+from fastapi import Depends, Header, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, Response
 from pydantic import BaseModel
 from typing import List, Optional
+import logging
+import requests
+from .config import CELCIA_OWNER_EMAIL, SUPABASE_ANON_KEY, SUPABASE_URL
+from .context import build_system_prompt
+from .memory import extract_candidate
+from .storage import StorageError, get_store
+
+logger = logging.getLogger(__name__)
 
 # Lazy AI import: only initialize when needed to prevent import-time crashes
 _ai_service = None
@@ -54,6 +63,14 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Celcia AI", lifespan=lifespan)
+
+
+@app.exception_handler(StorageError)
+async def storage_error_handler(request: Request, exc: StorageError):
+    return JSONResponse(
+        status_code=503,
+        content={"error": "database_error", "message": "Private storage is unavailable. Check Supabase configuration."},
+    )
 
 # CORS: allow same-origin (Vercel) and local dev origins
 app.add_middleware(
@@ -102,6 +119,48 @@ class VoiceRequest(BaseModel):
     text: str
 
 
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+
+class MemoryRequest(BaseModel):
+    content: str
+    category: str = "context"
+    importance: float = 0.5
+    confidence: float = 0.5
+
+
+class DocumentRequest(BaseModel):
+    name: str
+    content: str
+
+
+def current_user(authorization: str | None = Header(default=None)) -> dict:
+    """Validate the Supabase session server-side and enforce the owner email."""
+    if not authorization or not authorization.lower().startswith("bearer "):
+        raise HTTPException(status_code=401, detail={"error": "authentication_error", "message": "Sign in to use Celcia."})
+    if not SUPABASE_URL or not SUPABASE_ANON_KEY:
+        raise HTTPException(status_code=503, detail={"error": "configuration_error", "message": "Authentication is not configured."})
+    token = authorization.split(" ", 1)[1].strip()
+    try:
+        response = requests.get(
+            f"{SUPABASE_URL.rstrip('/')}/auth/v1/user",
+            headers={"apikey": SUPABASE_ANON_KEY, "Authorization": "Bearer " + token},
+            timeout=10,
+        )
+    except requests.RequestException as exc:
+        logger.error("Supabase session validation failed: %s", exc)
+        raise HTTPException(status_code=503, detail={"error": "authentication_error", "message": "Authentication service is unavailable."})
+    if not response.ok:
+        raise HTTPException(status_code=401, detail={"error": "authentication_error", "message": "Your session is invalid or expired."})
+    user = response.json()
+    if CELCIA_OWNER_EMAIL and user.get("email", "").lower() != CELCIA_OWNER_EMAIL.lower():
+        raise HTTPException(status_code=403, detail={"error": "authorization_error", "message": "This account is not authorized for Celcia."})
+    user["_access_token"] = token
+    return user
+
+
 @app.get("/")
 async def serve_frontend():
     """Serve the frontend HTML (fallback for local dev and Vercel function root)."""
@@ -116,22 +175,150 @@ async def serve_frontend():
 @app.get("/api/health")
 async def health_check():
     """Health check endpoint."""
-    return {"status": "ok"}
+    return {"status": "ok", "service": "Celcia AI", "model": os.getenv("OPENROUTER_MODEL", "openrouter/free")}
+
+
+@app.post("/api/auth/login")
+async def login(request: LoginRequest):
+    if not SUPABASE_URL or not SUPABASE_ANON_KEY:
+        raise HTTPException(status_code=503, detail={"error": "configuration_error", "message": "Authentication is not configured."})
+    try:
+        response = requests.post(
+            f"{SUPABASE_URL.rstrip('/')}/auth/v1/token?grant_type=password",
+            headers={"apikey": SUPABASE_ANON_KEY, "Content-Type": "application/json"},
+            json=request.model_dump(), timeout=10,
+        )
+    except requests.RequestException as exc:
+        logger.error("Supabase login failed: %s", exc)
+        raise HTTPException(status_code=503, detail={"error": "authentication_error", "message": "Authentication service is unavailable."})
+    if not response.ok:
+        raise HTTPException(status_code=401, detail={"error": "authentication_error", "message": "Invalid email or password."})
+    data = response.json()
+    if CELCIA_OWNER_EMAIL and data.get("user", {}).get("email", "").lower() != CELCIA_OWNER_EMAIL.lower():
+        raise HTTPException(status_code=403, detail={"error": "authorization_error", "message": "This account is not authorized for Celcia."})
+    return data
+
+
+@app.get("/api/auth/session")
+async def session(user: dict = Depends(current_user)):
+    return {"user": {"id": user.get("id"), "email": user.get("email")}}
+
+
+@app.get("/api/profile")
+async def get_profile(user: dict = Depends(current_user)):
+    rows = get_store().select("profiles", user["id"], user_token=user["_access_token"], limit=1)
+    return rows[0] if rows else {"user_id": user["id"]}
+
+
+@app.put("/api/profile")
+async def update_profile(profile: dict, user: dict = Depends(current_user)):
+    allowed = {"name", "bio", "education", "interests", "goals", "preferences"}
+    values = {key: value for key, value in profile.items() if key in allowed}
+    store = get_store()
+    return store.upsert("profiles", {"user_id": user["id"], **values}, user_token=user["_access_token"])
+
+
+@app.get("/api/memories")
+async def list_memories(user: dict = Depends(current_user)):
+    return get_store().select("memories", user["id"], user_token=user["_access_token"], query={"order": "updated_at.desc"})
+
+
+@app.post("/api/memories")
+async def create_memory(memory: MemoryRequest, user: dict = Depends(current_user)):
+    if not memory.content.strip() or extract_candidate(memory.content) is None:
+        raise HTTPException(status_code=400, detail={"error": "memory_error", "message": "Only useful, non-secret personal facts can be saved."})
+    return get_store().insert("memories", {"user_id": user["id"], **memory.model_dump()}, user_token=user["_access_token"])
+
+
+@app.patch("/api/memories/{memory_id}")
+async def update_memory(memory_id: str, memory: MemoryRequest, user: dict = Depends(current_user)):
+    return get_store().update("memories", memory_id, user["id"], memory.model_dump(), user_token=user["_access_token"])
+
+
+@app.delete("/api/memories/{memory_id}")
+async def delete_memory(memory_id: str, user: dict = Depends(current_user)):
+    get_store().delete("memories", memory_id, user["id"], user_token=user["_access_token"])
+    return {"status": "deleted"}
+
+
+@app.delete("/api/memories")
+async def clear_memories(user: dict = Depends(current_user)):
+    for memory in get_store().select("memories", user["id"], user_token=user["_access_token"], limit=500):
+        get_store().delete("memories", memory["id"], user["id"], user_token=user["_access_token"])
+    return {"status": "cleared"}
+
+
+@app.get("/api/conversations")
+async def list_conversations(user: dict = Depends(current_user)):
+    return get_store().select("conversations", user["id"], user_token=user["_access_token"], query={"order": "updated_at.desc"})
+
+
+@app.get("/api/conversations/{conversation_id}/messages")
+async def list_messages(conversation_id: str, user: dict = Depends(current_user)):
+    return get_store().select("messages", user["id"], user_token=user["_access_token"], query={"conversation_id": f"eq.{conversation_id}", "order": "created_at.asc"})
+
+
+@app.get("/api/documents")
+async def list_documents(user: dict = Depends(current_user)):
+    return get_store().select("documents", user["id"], user_token=user["_access_token"], query={"order": "created_at.desc"})
+
+
+@app.post("/api/documents")
+async def create_document(document: DocumentRequest, user: dict = Depends(current_user)):
+    if not document.name.strip() or not document.content.strip():
+        raise HTTPException(status_code=400, detail={"error": "document_error", "message": "A document name and content are required."})
+    saved = get_store().insert("documents", {"user_id": user["id"], "name": document.name.strip()}, user_token=user["_access_token"])
+    # Chunking is deliberately bounded; embedding can be added without changing document ownership.
+    chunks = [document.content[index:index + 2000] for index in range(0, len(document.content), 2000)]
+    for chunk in chunks:
+        get_store().insert("document_chunks", {"user_id": user["id"], "document_id": saved["id"], "content": chunk}, user_token=user["_access_token"])
+    return saved
 
 
 @app.post("/api/chat", response_model=ChatResponse)
-async def chat(request: ChatRequest):
+async def chat(request: ChatRequest, user: dict = Depends(current_user)):
     """Generate AI response using OpenRouter."""
     try:
         user_message = request.messages[-1].content if request.messages else ""
         history = [msg.model_dump() for msg in request.messages[:-1]]
-        response = get_ai_service().generate_response(user_message, history)
+        store = get_store()
+        profile_rows = store.select("profiles", user["id"], user_token=user["_access_token"], limit=1)
+        memories = store.select("memories", user["id"], user_token=user["_access_token"], limit=100)
+        response = get_ai_service().generate_response(
+            user_message, history, build_system_prompt(profile_rows[0] if profile_rows else None, memories, user_message)
+        )
+        conversation_id = request.conversation_id
+        if not conversation_id:
+            conversation = store.insert("conversations", {"user_id": user["id"], "title": user_message[:60]}, user_token=user["_access_token"])
+            conversation_id = conversation["id"]
+        else:
+            existing = store.select("conversations", user["id"], user_token=user["_access_token"], query={"id": f"eq.{conversation_id}"}, limit=1)
+            if not existing:
+                conversation = store.insert("conversations", {"user_id": user["id"], "title": user_message[:60]}, user_token=user["_access_token"])
+                conversation_id = conversation["id"]
+        store.insert("messages", {"user_id": user["id"], "conversation_id": conversation_id, "role": "user", "content": user_message}, user_token=user["_access_token"])
+        store.insert("messages", {"user_id": user["id"], "conversation_id": conversation_id, "role": "assistant", "content": response}, user_token=user["_access_token"])
+        candidate = extract_candidate(user_message)
+        if candidate:
+            existing = store.select("memories", user["id"], user_token=user["_access_token"], query={"content": f"eq.{candidate['content']}"}, limit=1)
+            if not existing:
+                store.insert("memories", {"user_id": user["id"], **candidate}, user_token=user["_access_token"])
+        if user_message.lower().startswith(("forget that", "forget this")):
+            for memory in store.select("memories", user["id"], user_token=user["_access_token"], limit=100):
+                if any(word in memory.get("content", "").lower() for word in user_message.lower().split()[2:]):
+                    store.delete("memories", memory["id"], user["id"], user_token=user["_access_token"])
         return ChatResponse(
             message=response,
-            conversation_id=request.conversation_id or "default",
+            conversation_id=conversation_id or "default",
         )
+    except HTTPException:
+        raise
+    except StorageError as e:
+        logger.error("Chat persistence failed: %s", e)
+        raise HTTPException(status_code=503, detail={"error": "database_error", "message": "Celcia could not access private storage."})
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error("Chat request failed: %s", e)
+        raise HTTPException(status_code=502, detail={"error": "model_error", "message": "Celcia could not reach the model."})
 
 
 @app.post("/api/voice")

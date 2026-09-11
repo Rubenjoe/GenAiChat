@@ -7,6 +7,7 @@ let currentConversation = {
 
 let conversations = [];
 let isLoading = false;
+let accessToken = localStorage.getItem('celcia_access_token');
 
 // DOM Elements
 const composerInput = document.getElementById('composerInput');
@@ -197,6 +198,113 @@ function setupEventListeners() {
     composerInput.addEventListener('input', autoResizeTextarea);
     
     newChatBtn.addEventListener('click', createNewConversation);
+    document.getElementById('memoryBtn').addEventListener('click', openMemories);
+    document.getElementById('closeMemoryBtn').addEventListener('click', () => document.getElementById('memoryPanel').classList.add('hidden'));
+    document.getElementById('clearMemoryBtn').addEventListener('click', clearMemories);
+    document.getElementById('loginBtn').addEventListener('click', () => {
+        document.getElementById('authPanel').classList.toggle('hidden');
+    });
+    document.getElementById('logoutBtn').addEventListener('click', signOut);
+    document.getElementById('authPanel').addEventListener('submit', signIn);
+    updateSessionUI();
+}
+
+async function openMemories() {
+    if (!accessToken) {
+        document.getElementById('authPanel').classList.remove('hidden');
+        return;
+    }
+    const panel = document.getElementById('memoryPanel');
+    const list = document.getElementById('memoryList');
+    panel.classList.remove('hidden');
+    list.textContent = 'Loading...';
+    const response = await fetch('/api/memories', { headers: authHeaders() });
+    const memories = response.ok ? await response.json() : [];
+    list.innerHTML = '';
+    memories.forEach(memory => {
+        const item = document.createElement('div');
+        item.className = 'memory-item';
+        const text = document.createElement('span');
+        text.textContent = memory.content;
+        const meta = document.createElement('small');
+        meta.textContent = `${memory.category} · ${new Date(memory.updated_at || memory.created_at).toLocaleDateString()}`;
+        item.appendChild(text);
+        item.appendChild(meta);
+        const editButton = document.createElement('button');
+        editButton.textContent = 'Edit';
+        editButton.addEventListener('click', async () => {
+            const content = window.prompt('Update this memory', memory.content);
+            if (content && content.trim() !== memory.content) {
+                await fetch(`/api/memories/${memory.id}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+                    body: JSON.stringify({ content: content.trim(), category: memory.category, importance: memory.importance, confidence: memory.confidence })
+                });
+                openMemories();
+            }
+        });
+        item.appendChild(editButton);
+        const deleteButton = document.createElement('button');
+        deleteButton.textContent = 'Delete';
+        deleteButton.addEventListener('click', async () => {
+            await fetch(`/api/memories/${memory.id}`, { method: 'DELETE', headers: authHeaders() });
+            openMemories();
+        });
+        item.appendChild(deleteButton);
+        list.appendChild(item);
+    });
+    if (!memories.length) list.textContent = 'No memories saved yet.';
+}
+
+async function clearMemories() {
+    if (accessToken && window.confirm('Clear all saved memories?')) {
+        await fetch('/api/memories', { method: 'DELETE', headers: authHeaders() });
+        openMemories();
+    }
+}
+
+function authHeaders() {
+    return accessToken ? { 'Authorization': `Bearer ${accessToken}` } : {};
+}
+
+function updateSessionUI() {
+    const signedIn = Boolean(accessToken);
+    document.getElementById('sessionStatus').textContent = signedIn ? 'Private session' : 'Sign in required';
+    document.getElementById('loginBtn').classList.toggle('hidden', signedIn);
+    document.getElementById('logoutBtn').classList.toggle('hidden', !signedIn);
+    composerInput.disabled = !signedIn;
+    sendBtn.disabled = !signedIn;
+}
+
+async function signIn(event) {
+    event.preventDefault();
+    const error = document.getElementById('authError');
+    error.textContent = '';
+    try {
+        const response = await fetch('/api/auth/login', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: document.getElementById('authEmail').value, password: document.getElementById('authPassword').value })
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.detail?.message || data.message || 'Sign in failed.');
+        accessToken = data.access_token;
+        localStorage.setItem('celcia_access_token', accessToken);
+        document.getElementById('authPanel').classList.add('hidden');
+        updateSessionUI();
+        await loadConversations();
+    } catch (e) {
+        error.textContent = e.message;
+    }
+}
+
+function signOut() {
+    accessToken = null;
+    localStorage.removeItem('celcia_access_token');
+    conversations = [];
+    currentConversation = { id: null, title: 'New conversation', messages: [] };
+    renderMessages();
+    updateChatList();
+    updateSessionUI();
 }
 
 // Auto-resize textarea
@@ -233,7 +341,8 @@ async function sendMessage() {
         const response = await fetch('/api/chat', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                ...authHeaders()
             },
             body: JSON.stringify({
                 conversation_id: currentConversation.id,
@@ -255,6 +364,7 @@ async function sendMessage() {
         
         // Add AI response to conversation
         addMessageToConversation('assistant', data.message);
+        currentConversation.id = data.conversation_id;
         
         // Save conversation
         saveConversations();
@@ -511,7 +621,7 @@ async function regenerateResponse(message) {
 // Conversation Management
 function createNewConversation() {
     currentConversation = {
-        id: Date.now().toString(),
+        id: null,
         title: 'New conversation',
         messages: []
     };
@@ -548,18 +658,22 @@ function renderMessages() {
 }
 
 // Chat History
-function loadConversations() {
-    const saved = localStorage.getItem('celcia_conversations');
-    if (saved) {
-        conversations = JSON.parse(saved);
+async function loadConversations() {
+    if (!accessToken) return;
+    try {
+        const response = await fetch('/api/conversations', { headers: authHeaders() });
+        if (!response.ok) return;
+        conversations = await response.json();
         updateChatList();
-        
-        // Load the most recent conversation
         if (conversations.length > 0) {
             currentConversation = conversations[0];
+            const messagesResponse = await fetch(`/api/conversations/${currentConversation.id}/messages`, { headers: authHeaders() });
+            currentConversation.messages = messagesResponse.ok ? await messagesResponse.json() : [];
             updateConversationHeader();
             renderMessages();
         }
+    } catch (error) {
+        console.error('Unable to load private conversations:', error);
     }
 }
 
@@ -575,7 +689,6 @@ function saveConversations() {
     // Keep only last 20 conversations
     conversations = conversations.slice(0, 20);
     
-    localStorage.setItem('celcia_conversations', JSON.stringify(conversations));
     updateChatList();
 }
 

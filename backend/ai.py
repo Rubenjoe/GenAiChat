@@ -1,17 +1,19 @@
 import os
 from openai import OpenAI
+from .config import OPENROUTER_MODEL
+from .context import PERSONA
 
 class OpenRouterAI:
     def __init__(self):
         self.api_key = os.getenv("OPENROUTER_API_KEY")
         self.client = OpenAI(
             api_key=self.api_key,
-            base_url="https://openrouter.ai/api/v1"
+            base_url="https://openrouter.ai/api/v1",
+            default_headers={"HTTP-Referer": os.getenv("APP_URL", "https://celcia-ai.vercel.app"), "X-Title": "Celcia AI"},
         )
-        self.model_name = "openai/gpt-3.5-turbo"
-        self.conversation_history = []
+        self.model_name = OPENROUTER_MODEL
         
-    def generate_response(self, user_message, conversation_history=None):
+    def generate_response(self, user_message, conversation_history=None, system_prompt=None):
         """
         Generate AI response using OpenRouter API
         """
@@ -23,7 +25,7 @@ class OpenRouterAI:
         
         # Build messages array
         messages = [
-            {"role": "system", "content": "You are a helpful assistant to answer user queries."}
+            {"role": "system", "content": system_prompt or PERSONA}
         ]
         
         # Add conversation history
@@ -41,12 +43,10 @@ class OpenRouterAI:
                 max_tokens=1024
             )
             
-            answer = response.choices[0].message.content
-            return answer
+            return response.choices[0].message.content or "I couldn't produce a response."
             
         except Exception as e:
-            print(f"Error in OpenRouter response: {str(e)}")
-            raise Exception(f"AI response failed: {str(e)}")
+            raise RuntimeError("OpenRouter response failed") from e
     
     def set_model(self, model_name):
         """Change the AI model"""
