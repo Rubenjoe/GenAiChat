@@ -272,8 +272,11 @@ function updateSessionUI() {
     document.getElementById('sessionStatus').textContent = signedIn ? 'Private session' : 'Sign in required';
     document.getElementById('loginBtn').classList.toggle('hidden', signedIn);
     document.getElementById('logoutBtn').classList.toggle('hidden', !signedIn);
-    composerInput.disabled = !signedIn;
-    sendBtn.disabled = !signedIn;
+    // Keep the composer focusable so visitors can type before signing in.
+    // Sending still requires a private Supabase session.
+    composerInput.disabled = false;
+    composerInput.placeholder = signedIn ? 'Ask Celcia anything...' : 'Sign in to chat with Celcia...';
+    sendBtn.disabled = false;
 }
 
 async function signIn(event) {
@@ -318,6 +321,12 @@ async function sendMessage() {
     const message = composerInput.value.trim();
     
     if (!message || isLoading) return;
+
+    if (!accessToken) {
+        document.getElementById('authPanel').classList.remove('hidden');
+        showError('Sign in to start a private conversation.');
+        return;
+    }
     
     // Clear input
     composerInput.value = '';

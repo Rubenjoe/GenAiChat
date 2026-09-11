@@ -211,6 +211,12 @@ The service role key is never sent to the browser. Memory extraction ignores
 credential-shaped content and only stores messages that contain clear personal
 memory cues.
 
+The login email is the Supabase Auth account configured as `CELCIA_OWNER_EMAIL`.
+The password is the password chosen for that account in Supabase Auth; this
+repository does not contain or generate credentials. If no account exists,
+create one in Supabase Dashboard → Authentication → Users, then set the same
+email in `CELCIA_OWNER_EMAIL`.
+
 ## 🔊 Voice Generation
 
 - Click "◉ Listen" on any AI response
