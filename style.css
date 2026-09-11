@@ -110,6 +110,81 @@ body {
     transform: translateY(-1px);
 }
 
+.memory-btn {
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: var(--radius-small);
+    padding: 10px 14px;
+    background: transparent;
+    color: var(--text-secondary);
+    text-align: left;
+    cursor: pointer;
+    font: 13px 'Space Grotesk', sans-serif;
+}
+
+.memory-btn:hover,
+.memory-clear-btn:hover {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.memory-panel {
+    position: fixed;
+    right: 24px;
+    top: 24px;
+    z-index: 4;
+    width: min(420px, calc(100vw - 48px));
+    max-height: calc(100vh - 48px);
+    overflow: auto;
+    padding: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: var(--radius-medium);
+    background: rgba(11, 11, 14, 0.96);
+    box-shadow: 0 16px 50px rgba(0, 0, 0, 0.45);
+}
+
+.memory-panel-header,
+.memory-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.memory-panel-header {
+    margin-bottom: 16px;
+}
+
+.memory-panel h2 {
+    font: 600 18px 'Bricolage Grotesque', sans-serif;
+}
+
+.memory-item {
+    align-items: flex-start;
+    padding: 12px 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    font-size: 13px;
+}
+
+.memory-item small {
+    display: block;
+    color: var(--text-low);
+    white-space: nowrap;
+}
+
+.memory-item button,
+.memory-clear-btn {
+    border: 0;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.memory-clear-btn {
+    margin-top: 12px;
+    padding: 8px 0;
+    color: #ff9a9a;
+}
+
 .plus-icon {
     font-size: 18px;
     font-weight: 600;
@@ -211,6 +286,50 @@ body {
 .menu-btn:hover {
     background: rgba(255, 255, 255, 0.08);
     color: var(--text-secondary);
+}
+
+.auth-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-left: auto;
+    margin-right: 12px;
+    font: 12px 'Space Grotesk', sans-serif;
+    color: var(--text-muted);
+}
+
+.auth-panel {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 32px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.auth-panel input,
+.auth-panel button {
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 8px;
+    background: var(--surface);
+    color: var(--text-primary);
+    padding: 8px 10px;
+    font: 12px 'Inter', sans-serif;
+}
+
+.auth-panel button {
+    cursor: pointer;
+    background: var(--text-primary);
+    color: var(--bg);
+}
+
+#authError {
+    color: #ff8b8b;
+    font-size: 12px;
+}
+
+.hidden {
+    display: none !important;
 }
 
 /* Conversation Area */

@@ -24,12 +24,21 @@
                     <span class="plus-icon">+</span>
                     <span>New chat</span>
                 </button>
+                <button class="memory-btn" id="memoryBtn">What I remember</button>
                 
                 <div class="recent-section">
                     <h2 class="recent-label">RECENT</h2>
                     <div class="chat-list" id="chatList">
                         <!-- Chat items will be populated dynamically -->
                     </div>
+                    <section class="memory-panel hidden" id="memoryPanel" aria-label="Celcia memories">
+                        <div class="memory-panel-header">
+                            <h2>What Celcia remembers</h2>
+                            <button id="closeMemoryBtn" class="menu-btn">Close</button>
+                        </div>
+                        <div id="memoryList"></div>
+                        <button id="clearMemoryBtn" class="memory-clear-btn">Clear memories</button>
+                    </section>
                 </div>
             </div>
         </aside>
@@ -42,6 +51,11 @@
                     <h1 class="header-title">Celcia AI</h1>
                     <p class="header-subtitle">Online · OpenRouter</p>
                 </div>
+                <div class="auth-controls">
+                    <span id="sessionStatus">Sign in required</span>
+                    <button class="menu-btn" id="loginBtn" aria-label="Sign in">Sign in</button>
+                    <button class="menu-btn hidden" id="logoutBtn" aria-label="Sign out">Sign out</button>
+                </div>
                 <button class="menu-btn" aria-label="Menu">
                     <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
                         <circle cx="10" cy="10" r="2" fill="currentColor"/>
@@ -50,6 +64,12 @@
                     </svg>
                 </button>
             </header>
+            <form class="auth-panel hidden" id="authPanel">
+                <input id="authEmail" type="email" placeholder="Email" autocomplete="email" required>
+                <input id="authPassword" type="password" placeholder="Password" autocomplete="current-password" required>
+                <button type="submit">Sign in</button>
+                <span id="authError" role="alert"></span>
+            </form>
             
             <!-- Conversation Area -->
             <div class="conversation-area">

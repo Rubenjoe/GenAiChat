@@ -2,14 +2,16 @@
 
 A premium AI chatbot with a professional dark interface, powered by **OpenRouter** and **ElevenLabs Text-to-Speech**.
 
-Celcia AI combines generative AI with voice synthesis in a polished, ChatGPT-like interface featuring a minimalist dark aesthetic, subtle star-field background, and professional conversation management.
+Celcia AI combines generative AI with voice synthesis in a polished, ChatGPT-like interface featuring a minimalist dark aesthetic, subtle star-field background, and private, authenticated personal context.
 
 ## ✨ Features
 
 - 💬 **Conversational AI** powered by OpenRouter (GPT-3.5 Turbo and other models)
 - 🎨 **Premium dark UI** with pitch-black background and subtle star-field animation
 - 🔊 **Text-to-speech** using ElevenLabs with "Listen" functionality
-- 💾 **Persistent chat history** with localStorage
+- 💾 **Authenticated conversation history** in Supabase
+- 🧠 **Conservative long-term memory** with relevance-filtered context
+- 🔐 **Supabase Auth and Row Level Security** for private data
 - 📋 **Copy functionality** for AI responses
 - 🔄 **Regenerate responses** for alternative answers
 - ➕ **New chat** management with conversation switching
@@ -179,16 +181,15 @@ http://localhost:8000
 - **+ New chat:** Start a fresh conversation
 - **Sidebar:** Switch between recent conversations
 - **Auto-titling:** First message becomes conversation title
-- **Persistence:** Conversations saved to localStorage
+- **Persistence:** Conversations saved to authenticated Supabase storage
 
 ## 🔧 Configuration
 
 ### Changing AI Model
-Edit `backend/ai.py` to change the OpenRouter model:
+Set `OPENROUTER_MODEL` in `.env`:
 
 ```python
-self.model_name = "openai/gpt-3.5-turbo"  # Default
-# Available models: "anthropic/claude-3.5-sonnet", "google/gemini-pro", etc.
+OPENROUTER_MODEL=openrouter/free
 ```
 
 ### Changing Voice
@@ -200,12 +201,21 @@ ELEVENLABS_VOICE_ID=your_voice_id_here
 
 Find voice IDs in the [ElevenLabs documentation](https://elevenlabs.io/docs/voices).
 
-## 🧠 Conversation Memory
+## 🧠 Private memory and persistence
 
-- Conversations are stored in browser localStorage
-- Maximum 20 recent conversations preserved
-- Each conversation maintains full message history
-- Context is sent to OpenRouter for coherent responses
+Run `supabase/schema.sql` in the Supabase SQL editor, enable email/password Auth,
+and set `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, and
+`CELCIA_OWNER_EMAIL`. The browser stores only the short-lived Supabase access
+token; conversations, memories, documents, and profile data remain server-side.
+The service role key is never sent to the browser. Memory extraction ignores
+credential-shaped content and only stores messages that contain clear personal
+memory cues.
+
+The login email is the Supabase Auth account configured as `CELCIA_OWNER_EMAIL`.
+The password is the password chosen for that account in Supabase Auth; this
+repository does not contain or generate credentials. If no account exists,
+create one in Supabase Dashboard → Authentication → Users, then set the same
+email in `CELCIA_OWNER_EMAIL`.
 
 ## 🔊 Voice Generation
 
@@ -216,7 +226,7 @@ Find voice IDs in the [ElevenLabs documentation](https://elevenlabs.io/docs/voic
 
 ## 🌐 API Endpoints
 
-### POST /api/chat
+### POST /api/chat (authenticated)
 Generate AI response
 
 **Request:**
@@ -260,6 +270,14 @@ Health check endpoint
 }
 ```
 
+Additional authenticated endpoints:
+
+- `POST /api/auth/login`, `GET /api/auth/session`
+- `GET/PUT /api/profile`
+- `GET/POST/PATCH/DELETE /api/memories`, `DELETE /api/memories`
+- `GET /api/conversations`, `GET /api/conversations/{id}/messages`
+- `GET/POST /api/documents`
+
 ## 📱 Responsive Design
 
 - **Desktop:** Full sidebar, centered conversation (720px max width)
@@ -276,11 +294,10 @@ Health check endpoint
 
 ## ⚠️ Current Limitations
 
-- Conversation history limited to localStorage (client-side only)
-- No user authentication or multi-user support
-- No database persistence (localStorage only)
-- Basic error handling for API failures
-- Audio files not automatically cleaned up
+- Semantic vector embeddings and web search tools are staged for the next iteration;
+  current retrieval uses bounded lexical relevance scoring.
+- Document ingestion stores bounded chunks but does not yet run an embedding model.
+- Supabase must be configured before private endpoints can be used.
 
 ## � Future Improvements
 
