@@ -25,6 +25,9 @@
                     <span>New chat</span>
                 </button>
                 <button class="memory-btn" id="memoryBtn">What I remember</button>
+                <button class="voice-shelf-btn" id="fullVoiceChatBtn" type="button" disabled aria-disabled="true" title="Full Voice Chat is coming soon">
+                    <span>Full Voice Chat</span><small>Coming soon</small>
+                </button>
                 
                 <div class="recent-section">
                     <h2 class="recent-label">RECENT</h2>
@@ -52,6 +55,7 @@
                     <p class="header-subtitle">Online · OpenRouter</p>
                 </div>
                 <div class="auth-controls">
+                    <button class="auto-voice-toggle" id="autoVoiceToggle" type="button" aria-pressed="false">AUTO VOICE: OFF</button>
                     <span id="sessionStatus">Sign in required</span>
                     <button class="menu-btn" id="loginBtn" aria-label="Sign in">Sign in</button>
                     <button class="menu-btn hidden" id="logoutBtn" aria-label="Sign out">Sign out</button>
@@ -88,8 +92,11 @@
             
             <!-- Composer Area -->
             <div class="composer-area">
+                <div class="attachment-preview hidden" id="attachmentPreview" aria-live="polite"></div>
+                <div class="composer-status" id="composerStatus" aria-live="polite"></div>
                 <div class="composer">
-                    <button class="composer-action-btn" aria-label="Add attachment">
+                    <input id="fileInput" type="file" class="hidden" accept=".pdf,.txt,.md,.markdown,.csv,.json,.docx,.py,.js,.ts,.tsx,.jsx,.html,.css,.sql,.yaml,.yml,.xml,.java,.go,.rs,.c,.cpp,.h,.sh,.ps1,.log">
+                    <button class="composer-action-btn" id="attachmentBtn" type="button" aria-label="Add attachment">
                         <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
                             <path d="M10 4V16M4 10H16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
                         </svg>
@@ -102,10 +109,10 @@
                         rows="1"
                     ></textarea>
                     
-                    <button class="composer-action-btn" aria-label="Search">
+                    <button class="composer-action-btn" id="dictationBtn" type="button" aria-label="Start voice dictation">
                         <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                            <circle cx="9" cy="9" r="6" stroke="currentColor" stroke-width="1.5"/>
-                            <path d="M14 14L17 17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                            <rect x="7" y="3" width="6" height="10" rx="3" stroke="currentColor" stroke-width="1.5"/>
+                            <path d="M5 10a5 5 0 0010 0M10 15v3M7 18h6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
                         </svg>
                     </button>
                     

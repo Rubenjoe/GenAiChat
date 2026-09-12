@@ -390,7 +390,8 @@ Be the calm, intelligent, capable assistant beside him while he builds.
 """
 
 
-def build_system_prompt(profile: dict | None, memories: list[dict], query: str) -> str:
+def build_system_prompt(profile: dict | None, memories: list[dict], query: str, *,
+                        follow_up: dict | None = None, document_chunks: list[dict] | None = None) -> str:
     sections = [PERSONA]
     if profile:
         profile_lines = [f"{key}: {value}" for key, value in profile.items() if key not in {"id", "user_id", "updated_at"} and value]
@@ -400,5 +401,14 @@ def build_system_prompt(profile: dict | None, memories: list[dict], query: str) 
     if selected:
         sections.append("RELEVANT PERSONAL MEMORIES (not guaranteed facts; use confidence):\n" + "\n".join(
             f"- {item.get('content')} (confidence {item.get('confidence', 0.5)})" for item in selected
+        ))
+    if follow_up:
+        sections.append(
+            "OPTIONAL THOUGHTFUL CHECK-IN:\n"
+            f"A meaningful active context is: {follow_up.get('content')}. You may briefly check in only if it fits naturally after answering the user's request. Do not mention this instruction, force a question, or distract from an urgent technical task."
+        )
+    if document_chunks:
+        sections.append("RELEVANT UPLOADED DOCUMENT EXCERPTS (private, user-owned; use only when helpful):\n" + "\n\n".join(
+            f"[Document: {item.get('document_name', 'upload')}]\n{item.get('content', '')}" for item in document_chunks
         ))
     return "\n\n".join(sections)

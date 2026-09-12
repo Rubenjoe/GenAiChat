@@ -126,6 +126,23 @@ body {
     background: rgba(255, 255, 255, 0.06);
 }
 
+.voice-shelf-btn {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: var(--radius-small);
+    padding: 10px 14px;
+    background: rgba(255, 255, 255, 0.025);
+    color: var(--text-low);
+    text-align: left;
+    font: 13px 'Space Grotesk', sans-serif;
+    cursor: not-allowed;
+}
+
+.voice-shelf-btn small { font-size: 10px; color: var(--text-faint); }
+
 .memory-panel {
     position: fixed;
     right: 24px;
@@ -297,6 +314,19 @@ body {
     font: 12px 'Space Grotesk', sans-serif;
     color: var(--text-muted);
 }
+
+.auto-voice-toggle {
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 999px;
+    padding: 6px 9px;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    font: 10px 'Space Grotesk', sans-serif;
+    letter-spacing: .35px;
+}
+
+.auto-voice-toggle.active { border-color: rgba(190, 202, 255, .6); color: #e6e8ff; background: rgba(126, 138, 225, .12); }
 
 .auth-panel {
     display: flex;
@@ -564,6 +594,36 @@ body {
     align-items: center;
     gap: 8px;
 }
+
+.attachment-preview,
+.composer-status {
+    width: min(var(--composer-width), 100%);
+    font: 12px 'Space Grotesk', sans-serif;
+}
+
+.attachment-preview {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 12px;
+    border: 1px solid rgba(255, 255, 255, .1);
+    border-radius: var(--radius-small);
+    background: rgba(11, 11, 14, .84);
+    color: var(--text-muted);
+}
+
+.attachment-preview span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.attachment-preview button { border: 0; background: transparent; color: #ff9a9a; cursor: pointer; font: inherit; }
+.composer-status { min-height: 16px; color: var(--text-low); text-align: left; }
+
+.composer-action-btn.listening {
+    color: #f3f3ff;
+    background: rgba(126, 138, 225, .2);
+    animation: micPulse 1.15s infinite ease-in-out;
+}
+
+@keyframes micPulse { 50% { box-shadow: 0 0 0 7px rgba(126, 138, 225, 0); } }
 
 .composer {
     width: var(--composer-width);

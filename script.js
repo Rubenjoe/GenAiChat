@@ -8,6 +8,11 @@ let currentConversation = {
 let conversations = [];
 let isLoading = false;
 let accessToken = localStorage.getItem('celcia_access_token');
+let pendingAttachment = null;
+let recognition = null;
+let isDictating = false;
+let currentAudio = null;
+let autoVoiceEnabled = localStorage.getItem('celcia_auto_voice') === 'true';
 
 // DOM Elements
 const composerInput = document.getElementById('composerInput');
@@ -18,6 +23,12 @@ const chatList = document.getElementById('chatList');
 const newChatBtn = document.getElementById('newChatBtn');
 const conversationTitle = document.getElementById('conversationTitle');
 const conversationSubtitle = document.getElementById('conversationSubtitle');
+const attachmentBtn = document.getElementById('attachmentBtn');
+const fileInput = document.getElementById('fileInput');
+const attachmentPreview = document.getElementById('attachmentPreview');
+const dictationBtn = document.getElementById('dictationBtn');
+const composerStatus = document.getElementById('composerStatus');
+const autoVoiceToggle = document.getElementById('autoVoiceToggle');
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
@@ -25,6 +36,7 @@ document.addEventListener('DOMContentLoaded', () => {
     loadConversations();
     setupEventListeners();
     autoResizeTextarea();
+    updateAutoVoiceToggle();
 });
 
 // Lightweight canvas flow field background
@@ -206,7 +218,97 @@ function setupEventListeners() {
     });
     document.getElementById('logoutBtn').addEventListener('click', signOut);
     document.getElementById('authPanel').addEventListener('submit', signIn);
+    attachmentBtn.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', handleAttachmentSelection);
+    dictationBtn.addEventListener('click', toggleDictation);
+    autoVoiceToggle.addEventListener('click', () => {
+        autoVoiceEnabled = !autoVoiceEnabled;
+        localStorage.setItem('celcia_auto_voice', String(autoVoiceEnabled));
+        updateAutoVoiceToggle();
+    });
     updateSessionUI();
+}
+
+function updateAutoVoiceToggle() {
+    autoVoiceToggle.textContent = `AUTO VOICE: ${autoVoiceEnabled ? 'ON' : 'OFF'}`;
+    autoVoiceToggle.setAttribute('aria-pressed', String(autoVoiceEnabled));
+    autoVoiceToggle.classList.toggle('active', autoVoiceEnabled);
+}
+
+function setComposerStatus(message = '') {
+    composerStatus.textContent = message;
+}
+
+function formatFileSize(bytes) {
+    return bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function handleAttachmentSelection(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (file.size > 8 * 1024 * 1024) {
+        showError('This file is too large. The limit is 8 MB.');
+        fileInput.value = '';
+        return;
+    }
+    pendingAttachment = file;
+    attachmentPreview.classList.remove('hidden');
+    attachmentPreview.innerHTML = '';
+    const label = document.createElement('span');
+    label.textContent = `${file.name} · ${file.type || file.name.split('.').pop().toUpperCase()} · ${formatFileSize(file.size)}`;
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.textContent = 'Remove';
+    remove.addEventListener('click', clearAttachment);
+    attachmentPreview.append(label, remove);
+}
+
+function clearAttachment() {
+    pendingAttachment = null;
+    fileInput.value = '';
+    attachmentPreview.classList.add('hidden');
+    attachmentPreview.innerHTML = '';
+}
+
+function toggleDictation() {
+    if (isDictating) {
+        recognition?.stop();
+        return;
+    }
+    const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!Recognition) {
+        showError('This browser does not support voice dictation.');
+        return;
+    }
+    recognition = new Recognition();
+    recognition.continuous = false;
+    recognition.interimResults = true;
+    recognition.lang = navigator.language || 'en-US';
+    const original = composerInput.value.trim();
+    recognition.onstart = () => {
+        isDictating = true;
+        dictationBtn.classList.add('listening');
+        dictationBtn.setAttribute('aria-label', 'Stop voice dictation');
+        setComposerStatus('Listening… click the microphone to stop.');
+    };
+    recognition.onresult = (event) => {
+        let transcript = '';
+        for (let i = event.resultIndex; i < event.results.length; i++) transcript += event.results[i][0].transcript;
+        composerInput.value = [original, transcript.trim()].filter(Boolean).join(original && transcript ? ' ' : '');
+        autoResizeTextarea();
+    };
+    recognition.onerror = (event) => {
+        const messages = { 'not-allowed': 'Microphone permission was denied.', 'service-not-allowed': 'Microphone permission was denied.', 'no-speech': 'I could not hear any speech. Try again.', 'audio-capture': 'No microphone was found.' };
+        if (event.error !== 'aborted') showError(messages[event.error] || 'Voice dictation is unavailable right now.');
+    };
+    recognition.onend = () => {
+        isDictating = false;
+        dictationBtn.classList.remove('listening');
+        dictationBtn.setAttribute('aria-label', 'Start voice dictation');
+        setComposerStatus('');
+        composerInput.focus();
+    };
+    try { recognition.start(); } catch (_) { showError('Voice dictation is unavailable right now.'); }
 }
 
 async function openMemories() {
@@ -318,9 +420,9 @@ function autoResizeTextarea() {
 
 // Send Message
 async function sendMessage() {
-    const message = composerInput.value.trim();
+    let message = composerInput.value.trim();
     
-    if (!message || isLoading) return;
+    if ((!message && !pendingAttachment) || isLoading) return;
 
     if (!accessToken) {
         document.getElementById('authPanel').classList.remove('hidden');
@@ -328,6 +430,27 @@ async function sendMessage() {
         return;
     }
     
+    let documentIds = [];
+    if (pendingAttachment) {
+        setComposerStatus(`Uploading ${pendingAttachment.name}…`);
+        try {
+            const formData = new FormData();
+            formData.append('file', pendingAttachment);
+            if (currentConversation.id) formData.append('conversation_id', currentConversation.id);
+            const upload = await fetch('/api/documents/upload', { method: 'POST', headers: authHeaders(), body: formData });
+            const uploadData = await upload.json();
+            if (!upload.ok) throw new Error(uploadData.detail?.message || uploadData.message || "I couldn't extract text from this file.");
+            documentIds = [uploadData.id];
+            if (!message) message = `Please review the attached file: ${pendingAttachment.name}.`;
+            clearAttachment();
+        } catch (error) {
+            setComposerStatus('');
+            showError(error.message || "I couldn't upload this file.");
+            return;
+        }
+        setComposerStatus('');
+    }
+
     // Clear input
     composerInput.value = '';
     composerInput.style.height = 'auto';
@@ -355,6 +478,7 @@ async function sendMessage() {
             },
             body: JSON.stringify({
                 conversation_id: currentConversation.id,
+                document_ids: documentIds,
                 messages: currentConversation.messages.map(msg => ({
                     role: msg.role,
                     content: msg.content
@@ -377,6 +501,9 @@ async function sendMessage() {
         
         // Save conversation
         saveConversations();
+        if (autoVoiceEnabled) {
+            listenToResponse(data.message, { automatic: true });
+        }
         
     } catch (error) {
         hideLoadingIndicator();
@@ -431,6 +558,11 @@ function renderMessage(message) {
         listenBtn.className = 'message-action';
         listenBtn.innerHTML = '◉ Listen';
         listenBtn.addEventListener('click', () => listenToResponse(message.content));
+
+        const stopBtn = document.createElement('button');
+        stopBtn.className = 'message-action';
+        stopBtn.innerHTML = 'Stop';
+        stopBtn.addEventListener('click', stopAudio);
         
         // Copy button
         const copyBtn = document.createElement('button');
@@ -445,6 +577,7 @@ function renderMessage(message) {
         regenerateBtn.addEventListener('click', () => regenerateResponse(message));
         
         actions.appendChild(listenBtn);
+        actions.appendChild(stopBtn);
         actions.appendChild(copyBtn);
         actions.appendChild(regenerateBtn);
         
@@ -553,14 +686,36 @@ async function copyToClipboard(text) {
 }
 
 // Listen to response (ElevenLabs)
-async function listenToResponse(text) {
+function spokenText(text) {
+    return text
+        .replace(/```[\s\S]*?```/g, ' Code example omitted. ')
+        .replace(/`([^`]+)`/g, '$1')
+        .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
+        .replace(/[*_#>-]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+function stopAudio() {
+    if (currentAudio) {
+        currentAudio.pause();
+        currentAudio.currentTime = 0;
+        currentAudio = null;
+        setComposerStatus('');
+    }
+}
+
+async function listenToResponse(text, { automatic = false } = {}) {
     try {
+        stopAudio();
+        setComposerStatus('Preparing voice…');
         const response = await fetch('/api/voice', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                ...authHeaders()
             },
-            body: JSON.stringify({ text })
+            body: JSON.stringify({ text: spokenText(text) })
         });
         
         if (!response.ok) {
@@ -586,6 +741,7 @@ async function listenToResponse(text) {
             }
             
             showError(errorMessage);
+            setComposerStatus('');
             return;
         }
         
@@ -594,16 +750,29 @@ async function listenToResponse(text) {
         const audioUrl = URL.createObjectURL(audioBlob);
         
         const audio = new Audio(audioUrl);
-        audio.play();
+        currentAudio = audio;
+        setComposerStatus('Celcia is speaking… click Listen again to replace playback.');
+        try {
+            await audio.play();
+        } catch (_) {
+            if (automatic) showError('Voice playback is unavailable right now. Use Listen to try again.');
+            else showError('Voice playback is unavailable right now.');
+            setComposerStatus('');
+            URL.revokeObjectURL(audioUrl);
+            return;
+        }
         
         // Clean up the object URL after audio finishes playing
         audio.addEventListener('ended', () => {
             URL.revokeObjectURL(audioUrl);
+            if (currentAudio === audio) currentAudio = null;
+            setComposerStatus('');
         });
         
     } catch (error) {
         console.error('Error generating audio:', error);
         showError('Voice playback is currently unavailable. Please check your connection and try again.');
+        setComposerStatus('');
     }
 }
 

@@ -9,10 +9,11 @@ exposed via api/index.py, so the public paths become:
   /api/voice     -> ElevenLabs TTS (returns audio/mpeg bytes)
 """
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 from pathlib import Path
 import os
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from fastapi import Depends, Header, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, Response
@@ -22,7 +23,8 @@ import logging
 import requests
 from .config import CELCIA_OWNER_EMAIL, SUPABASE_ANON_KEY, SUPABASE_URL
 from .context import build_system_prompt
-from .memory import extract_candidate
+from .documents import chunk_text, extract_upload, relevant_chunks
+from .memory import choose_follow_up, extract_candidate, matching_memory
 from .storage import StorageError, get_store
 
 logger = logging.getLogger(__name__)
@@ -108,6 +110,7 @@ class Message(BaseModel):
 class ChatRequest(BaseModel):
     conversation_id: Optional[str] = None
     messages: List[Message]
+    document_ids: List[str] = []
 
 
 class ChatResponse(BaseModel):
@@ -129,11 +132,20 @@ class MemoryRequest(BaseModel):
     category: str = "context"
     importance: float = 0.5
     confidence: float = 0.5
+    status: str = "active"
+    follow_up_eligible: bool = False
 
 
 class DocumentRequest(BaseModel):
     name: str
     content: str
+
+
+def document_metadata(name: str, file_type: str, size: int, conversation_id: str | None = None) -> dict:
+    metadata = {"file_type": file_type, "size": size}
+    if conversation_id:
+        metadata["conversation_id"] = conversation_id
+    return metadata
 
 
 def current_user(authorization: str | None = Header(default=None)) -> dict:
@@ -267,12 +279,30 @@ async def list_documents(user: dict = Depends(current_user)):
 async def create_document(document: DocumentRequest, user: dict = Depends(current_user)):
     if not document.name.strip() or not document.content.strip():
         raise HTTPException(status_code=400, detail={"error": "document_error", "message": "A document name and content are required."})
-    saved = get_store().insert("documents", {"user_id": user["id"], "name": document.name.strip()}, user_token=user["_access_token"])
-    # Chunking is deliberately bounded; embedding can be added without changing document ownership.
-    chunks = [document.content[index:index + 2000] for index in range(0, len(document.content), 2000)]
+    saved = get_store().insert("documents", {"user_id": user["id"], "name": document.name.strip(), "metadata": document_metadata(document.name, "text", len(document.content.encode("utf-8")))}, user_token=user["_access_token"])
+    chunks = chunk_text(document.content)
     for chunk in chunks:
         get_store().insert("document_chunks", {"user_id": user["id"], "document_id": saved["id"], "content": chunk}, user_token=user["_access_token"])
     return saved
+
+
+@app.post("/api/documents/upload")
+async def upload_document(file: UploadFile = File(...), conversation_id: Optional[str] = Form(default=None), user: dict = Depends(current_user)):
+    """Validate, extract, and store a browser attachment in the existing document tables."""
+    name, file_type, size, content = await extract_upload(file)
+    store = get_store()
+    saved = store.insert(
+        "documents",
+        {"user_id": user["id"], "name": name, "metadata": document_metadata(name, file_type, size, conversation_id)},
+        user_token=user["_access_token"],
+    )
+    for index, chunk in enumerate(chunk_text(content)):
+        store.insert(
+            "document_chunks",
+            {"user_id": user["id"], "document_id": saved["id"], "content": chunk, "metadata": {"chunk_index": index}},
+            user_token=user["_access_token"],
+        )
+    return {**saved, "file_type": file_type, "size": size}
 
 
 @app.post("/api/chat", response_model=ChatResponse)
@@ -284,8 +314,20 @@ async def chat(request: ChatRequest, user: dict = Depends(current_user)):
         store = get_store()
         profile_rows = store.select("profiles", user["id"], user_token=user["_access_token"], limit=1)
         memories = store.select("memories", user["id"], user_token=user["_access_token"], limit=100)
+        documents = store.select("documents", user["id"], user_token=user["_access_token"], limit=100)
+        requested_ids = set(request.document_ids)
+        if requested_ids:
+            owned_ids = {item["id"] for item in documents if item["id"] in requested_ids}
+        else:
+            owned_ids = {item["id"] for item in documents if (item.get("metadata") or {}).get("conversation_id") == request.conversation_id}
+        all_chunks = store.select("document_chunks", user["id"], user_token=user["_access_token"], limit=300) if owned_ids else []
+        document_names = {item["id"]: item["name"] for item in documents}
+        selected_chunks = relevant_chunks([chunk for chunk in all_chunks if chunk.get("document_id") in owned_ids], user_message)
+        for chunk in selected_chunks:
+            chunk["document_name"] = document_names.get(chunk.get("document_id"), "upload")
+        follow_up = choose_follow_up(memories, user_message)
         response = get_ai_service().generate_response(
-            user_message, history, build_system_prompt(profile_rows[0] if profile_rows else None, memories, user_message)
+            user_message, history, build_system_prompt(profile_rows[0] if profile_rows else None, memories, user_message, follow_up=follow_up, document_chunks=selected_chunks)
         )
         conversation_id = request.conversation_id
         if not conversation_id:
@@ -300,9 +342,18 @@ async def chat(request: ChatRequest, user: dict = Depends(current_user)):
         store.insert("messages", {"user_id": user["id"], "conversation_id": conversation_id, "role": "assistant", "content": response}, user_token=user["_access_token"])
         candidate = extract_candidate(user_message)
         if candidate:
-            existing = store.select("memories", user["id"], user_token=user["_access_token"], query={"content": f"eq.{candidate['content']}"}, limit=1)
-            if not existing:
+            existing = matching_memory(memories, candidate)
+            if existing:
+                store.update("memories", existing["id"], user["id"], candidate, user_token=user["_access_token"])
+            else:
                 store.insert("memories", {"user_id": user["id"], **candidate}, user_token=user["_access_token"])
+        if follow_up:
+            store.update("memories", follow_up["id"], user["id"], {"last_follow_up_at": datetime.now(timezone.utc).isoformat()}, user_token=user["_access_token"])
+        # Persist the attachment relationship after a newly-created conversation gets its id.
+        for document in documents:
+            if document["id"] in owned_ids and (document.get("metadata") or {}).get("conversation_id") != conversation_id:
+                metadata = {**(document.get("metadata") or {}), "conversation_id": conversation_id}
+                store.update("documents", document["id"], user["id"], {"metadata": metadata}, user_token=user["_access_token"])
         if user_message.lower().startswith(("forget that", "forget this")):
             for memory in store.select("memories", user["id"], user_token=user["_access_token"], limit=100):
                 if any(word in memory.get("content", "").lower() for word in user_message.lower().split()[2:]):
@@ -322,7 +373,7 @@ async def chat(request: ChatRequest, user: dict = Depends(current_user)):
 
 
 @app.post("/api/voice")
-async def generate_voice(request: VoiceRequest):
+async def generate_voice(request: VoiceRequest, user: dict = Depends(current_user)):
     """Generate audio from text using ElevenLabs. Returns audio/mpeg bytes."""
     try:
         audio_bytes = get_voice_service().generate_audio(request.text)
@@ -334,17 +385,17 @@ async def generate_voice(request: VoiceRequest):
     except ModuleNotFoundError as e:
         return JSONResponse(
             status_code=503,
-            content={"error": "service_unavailable", "message": f"Voice service unavailable: {str(e)}"},
+            content={"error": "service_unavailable", "message": "Voice playback is unavailable right now."},
         )
     except ValueError as e:
         return JSONResponse(
-            status_code=400,
-            content={"error": "voice_error", "message": str(e)},
+            status_code=503,
+            content={"error": "voice_error", "message": "Voice playback is unavailable right now."},
         )
     except Exception as e:
         return JSONResponse(
             status_code=500,
-            content={"error": "internal_error", "message": str(e)},
+            content={"error": "internal_error", "message": "Voice playback is unavailable right now."},
         )
 
 
