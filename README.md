@@ -1,349 +1,172 @@
-# 🤖 Celcia AI
+# Celcia AI 🤖
 
-A premium AI chatbot with a professional dark interface, powered by **OpenRouter** and **ElevenLabs Text-to-Speech**.
+> A personal AI assistant built from scratch with a dark, ChatGPT/Grok-inspired interface, persistent conversations, long-term memory, authentication, and voice output.
 
-Celcia AI combines generative AI with voice synthesis in a polished, ChatGPT-like interface featuring a minimalist dark aesthetic, subtle star-field background, and private, authenticated personal context.
+**Stack:** Python · FastAPI · HTML/CSS/JavaScript · OpenRouter · Supabase · ElevenLabs
 
-## ✨ Features
+## Why this project
 
-- 💬 **Conversational AI** powered by OpenRouter (GPT-3.5 Turbo and other models)
-- 🎨 **Premium dark UI** with pitch-black background and subtle star-field animation
-- 🔊 **Text-to-speech** using ElevenLabs with "Listen" functionality
-- 💾 **Authenticated conversation history** in Supabase
-- 🧠 **Conservative long-term memory** with relevance-filtered context
-- 🔐 **Supabase Auth and Row Level Security** for private data
-- 📋 **Copy functionality** for AI responses
-- 🔄 **Regenerate responses** for alternative answers
-- ➕ **New chat** management with conversation switching
-- � **Responsive design** for desktop, tablet, and mobile
-- ⚡ **FastAPI backend** with modern async architecture
-- 🎯 **Markdown support** for rich text responses
-- 🛡️ **Secure API key management** with environment variables
+Celcia AI started as a chatbot experiment and evolved into a small full-stack AI application. The goal was not just to call an LLM API, but to build the surrounding product: authentication, conversation persistence, memory, voice output, API boundaries, and a usable interface.
 
-## 🏗️ Architecture
+## What it does
+
+- **AI conversations** through OpenRouter with configurable models
+- **Persistent chats** stored in Supabase
+- **Authentication + Row Level Security** for private data
+- **Long-term memory** with bounded relevance-based retrieval
+- **Voice output** through ElevenLabs
+- **Regenerate / copy / listen** actions for responses
+- **Conversation switching** and new-chat management
+- **Markdown rendering** for richer responses
+- **Responsive dark UI** for desktop and mobile
+- **FastAPI backend** separating frontend behaviour from external API credentials
+
+## Architecture
 
 ```text
-                   ┌──────────────────┐
-                   │      User        │
-                   └────────┬─────────┘
-                            │
-                            ▼
-                   ┌──────────────────┐
-                   │  HTML/CSS/JS UI  │
-                   │   (Celcia Design)│
-                   └────────┬─────────┘
-                            │
-                            ▼
-                   ┌──────────────────┐
-                   │   FastAPI        │
-                   │   Backend        │
-                   └────────┬─────────┘
-                            │
-                ┌───────────┴───────────┐
-                │                       │
-                ▼                       ▼
-        ┌───────────────┐      ┌───────────────┐
-        │  OpenRouter   │      │  ElevenLabs   │
-        │   (AI API)    │      │  (Voice API)  │
-        └───────────────┘      └───────────────┘
+┌──────────────┐
+│    Browser   │
+│ HTML/CSS/JS  │
+└──────┬───────┘
+       │
+       ▼
+┌──────────────┐
+│   FastAPI    │
+│   Backend    │
+└──────┬───────┘
+       │
+ ┌─────┴───────────────┐
+ ▼                     ▼
+OpenRouter           Supabase
+LLM responses        Auth + data
+ │
+ ▼
+ElevenLabs
+Voice output
 ```
 
-## 🛠️ Tech Stack
-
-| Technology | Purpose |
-|---|---|
-| Python | Core application logic |
-| FastAPI | High-performance web framework |
-| OpenRouter | Generative AI responses |
-| ElevenLabs | Text-to-speech generation |
-| HTML/CSS/JavaScript | Modern frontend interface |
-| OpenAI SDK | OpenRouter API compatibility |
-| python-dotenv | Environment variable management |
-
-## 📁 Project Structure
+## Project structure
 
 ```text
 GenAiChat/
-│
-├── index.html              # Main HTML structure
-├── style.css               # Celcia design styling
-├── script.js               # Frontend logic
-│
+├── index.html
+├── style.css
+├── script.js
 ├── backend/
-│   ├── main.py           # FastAPI application
-│   ├── ai.py             # OpenRouter integration
-│   └── voice.py          # ElevenLabs integration
-│
-├── audio_outputs/        # Generated audio files
-├── .env                  # API keys (not in git)
-├── .env.example          # Environment template
-├── requirements.txt      # Python dependencies
-├── README.md             # This file
-└── .gitignore           # Git ignore rules
+│   ├── main.py
+│   ├── ai.py
+│   └── voice.py
+├── supabase/
+│   └── schema.sql
+├── .env.example
+├── requirements.txt
+├── .gitignore
+└── README.md
 ```
 
-## 🚀 Getting Started
+## Running locally
 
-### 1. Clone the repository
+### Requirements
+
+- Python 3.10+
+- A Supabase project
+- An OpenRouter API key
+- An ElevenLabs API key for voice output
+
+### Setup
 
 ```bash
 git clone https://github.com/Rubenjoe/GenAiChat.git
 cd GenAiChat
-```
-
-### 2. Create a virtual environment
-
-```bash
 python -m venv venv
 ```
 
-Activate it on Windows:
+Windows:
 
 ```bash
 venv\Scripts\activate
 ```
 
-Activate it on macOS/Linux:
+macOS/Linux:
 
 ```bash
 source venv/bin/activate
 ```
 
-### 3. Install dependencies
+Install dependencies:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 4. Configure API credentials
+Create `.env` from `.env.example` and provide the required credentials.
 
-Create a `.env` file in the project root based on `.env.example`:
-
-```env
-OPENROUTER_API_KEY=your_openrouter_api_key_here
-ELEVENLABS_API_KEY=your_elevenlabs_api_key_here
-ELEVENLABS_VOICE_ID=21m00Tcm4TlvDq8ikWAM
-```
-
-**⚠️ Important:** Never commit `.env` file or API keys to GitHub.
-
-### 5. Run the application
+Start the backend:
 
 ```bash
 python backend/main.py
 ```
 
-The application will start on `http://localhost:8000`
+Then open `http://localhost:8000`.
 
-### 6. Access the application
+## Environment variables
 
-Open your browser and navigate to:
-```
-http://localhost:8000
-```
-
-## 🎨 Design Features
-
-### Visual Design
-- **Pitch-black background** (#020202) with subtle star-field animation
-- **Minimal futuristic aesthetic** inspired by ChatGPT and Grok
-- **Professional typography** using Bricolage Grotesque, Space Grotesk, and Inter fonts
-- **Low-contrast UI elements** for reduced eye strain
-- **Clean, spacious layout** with centered conversation content
-
-### UI Components
-- **Left sidebar** (260px) with conversation history
-- **Rounded modern composer** (860px width, 76px height)
-- **Minimal top navigation** with status indicators
-- **Message actions** (Listen, Copy, Regenerate)
-- **Responsive design** for all screen sizes
-
-### Typography
-- **Brand:** Bricolage Grotesque Bold (26px)
-- **Headings:** Bricolage Grotesque (600 weight)
-- **UI Labels:** Space Grotesk (400-500 weight)
-- **Body Text:** Inter (400 weight, 17px)
-
-## 💬 Usage
-
-### Starting a Conversation
-1. Type your message in the composer at the bottom
-2. Press Enter to send (Shift+Enter for new line)
-3. Watch the AI response appear with a typing indicator
-4. Use message actions for additional functionality
-
-### Message Actions
-- **◉ Listen:** Generate and play audio using ElevenLabs
-- **Copy:** Copy the AI response to clipboard
-- **↻ Regenerate:** Get an alternative response for the same message
-
-### Conversation Management
-- **+ New chat:** Start a fresh conversation
-- **Sidebar:** Switch between recent conversations
-- **Auto-titling:** First message becomes conversation title
-- **Persistence:** Conversations saved to authenticated Supabase storage
-
-## 🔧 Configuration
-
-### Changing AI Model
-Set `OPENROUTER_MODEL` in `.env`:
-
-```python
-OPENROUTER_MODEL=openrouter/free
-```
-
-### Changing Voice
-Edit your `.env` file to use a different ElevenLabs voice:
+Use the variable names documented in `.env.example`. Typical values include:
 
 ```env
-ELEVENLABS_VOICE_ID=your_voice_id_here
+OPENROUTER_API_KEY=your_key
+OPENROUTER_MODEL=openrouter/free
+ELEVENLABS_API_KEY=your_key
+ELEVENLABS_VOICE_ID=your_voice_id
+SUPABASE_URL=your_project_url
+SUPABASE_ANON_KEY=your_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+CELCIA_OWNER_EMAIL=your_auth_email
 ```
 
-Find voice IDs in the [ElevenLabs documentation](https://elevenlabs.io/docs/voices).
+**Never commit `.env`, service-role keys, database passwords, or access tokens.** The service-role credential is intended for the backend only.
 
-## 🧠 Private memory and persistence
+## API surface
 
-Run `supabase/schema.sql` in the Supabase SQL editor, enable email/password Auth,
-and set `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, and
-`CELCIA_OWNER_EMAIL`. The browser stores only the short-lived Supabase access
-token; conversations, memories, documents, and profile data remain server-side.
-The service role key is never sent to the browser. Memory extraction ignores
-credential-shaped content and only stores messages that contain clear personal
-memory cues.
+| Endpoint | Purpose |
+|---|---|
+| `POST /api/chat` | Generate an authenticated AI response |
+| `POST /api/voice` | Generate speech from text |
+| `GET /api/health` | Service health check |
+| `POST /api/auth/login` | Authenticate the user |
+| `GET /api/auth/session` | Retrieve the current session |
+| `GET/PUT /api/profile` | Read/update profile data |
+| `/api/memories` | Manage stored memories |
+| `/api/conversations` | List and retrieve conversations |
+| `/api/documents` | Store document content/metadata |
 
-The login email is the Supabase Auth account configured as `CELCIA_OWNER_EMAIL`.
-The password is the password chosen for that account in Supabase Auth; this
-repository does not contain or generate credentials. If no account exists,
-create one in Supabase Dashboard → Authentication → Users, then set the same
-email in `CELCIA_OWNER_EMAIL`.
+## Security decisions
 
-## 🔊 Voice Generation
+- External API credentials stay server-side.
+- Supabase Row Level Security protects private application data.
+- The browser receives only a short-lived auth token.
+- Markdown output is sanitized before rendering.
+- Memory extraction is conservative and avoids credential-shaped content.
 
-- Click "◉ Listen" on any AI response
-- Audio is generated using ElevenLabs API
-- MP3 files are temporarily stored in `audio_outputs/`
-- Audio plays automatically in the browser
+## Current limitations
 
-## 🌐 API Endpoints
+- Memory retrieval currently uses bounded lexical relevance rather than vector embeddings.
+- Document ingestion stores chunks but does not yet perform semantic embedding/search.
+- The application is designed primarily as a personal/private assistant rather than a multi-tenant SaaS product.
 
-### POST /api/chat (authenticated)
-Generate AI response
+## Roadmap
 
-**Request:**
-```json
-{
-    "conversation_id": "optional_id",
-    "messages": [
-        {"role": "user", "content": "Your message"}
-    ]
-}
-```
+- Semantic retrieval with embeddings
+- Speech-to-text input
+- Better document analysis and file uploads
+- Automated tests and CI
+- Usage/token analytics
+- Production deployment hardening
 
-**Response:**
-```json
-{
-    "message": "AI response",
-    "conversation_id": "conversation_id"
-}
-```
+## License
 
-### POST /api/voice
-Generate audio from text
+No license is currently specified. Add one before distributing the project for reuse.
 
-**Request:**
-```json
-{
-    "text": "Text to convert to speech"
-}
-```
+## Author
 
-**Response:** Audio file (MP3)
-
-### GET /api/health
-Health check endpoint
-
-**Response:**
-```json
-{
-    "status": "healthy",
-    "service": "Celcia AI"
-}
-```
-
-Additional authenticated endpoints:
-
-- `POST /api/auth/login`, `GET /api/auth/session`
-- `GET/PUT /api/profile`
-- `GET/POST/PATCH/DELETE /api/memories`, `DELETE /api/memories`
-- `GET /api/conversations`, `GET /api/conversations/{id}/messages`
-- `GET/POST /api/documents`
-
-## 📱 Responsive Design
-
-- **Desktop:** Full sidebar, centered conversation (720px max width)
-- **Tablet:** Narrower sidebar, responsive composer
-- **Mobile:** Collapsible sidebar, full-width conversation
-
-## � Security
-
-- API keys stored in environment variables
-- No secrets exposed to frontend
-- CORS configured for local development
-- Input sanitization for Markdown rendering
-- Audio files generated in secure directory
-
-## ⚠️ Current Limitations
-
-- Semantic vector embeddings and web search tools are staged for the next iteration;
-  current retrieval uses bounded lexical relevance scoring.
-- Document ingestion stores bounded chunks but does not yet run an embedding model.
-- Supabase must be configured before private endpoints can be used.
-
-## � Future Improvements
-
-- 🗄️ Database integration for conversation persistence
-- � User authentication and separate user spaces
-- 🎤 Speech-to-text input for voice commands
-- 🌍 Multi-language support for voice
-- 📊 Usage analytics and token tracking
-- 🧪 Automated testing suite
-- 🚀 Production deployment optimization
-- � Push notifications for long responses
-- 📎 File upload and document analysis
-- 🎨 Theme customization options
-
-## 🐛 Troubleshooting
-
-### Application won't start
-- Ensure virtual environment is activated
-- Check that all dependencies are installed
-- Verify `.env` file exists with valid API keys
-
-### API errors
-- Verify OpenRouter API key is valid and has credits
-- Check ElevenLabs API key and voice ID
-- Ensure internet connection is stable
-
-### Audio not playing
-- Check browser audio permissions
-- Verify ElevenLabs API key is valid
-- Check browser console for errors
-
-### Styling issues
-- Clear browser cache
-- Ensure all frontend files are present
-- Check browser compatibility
-
-## 📜 License
-
-No license is currently specified for this repository. Add a license that matches how you want others to use and distribute the project.
-
-## 👨‍💻 Author
-
-**Rubenjoe**
-
-GitHub: https://github.com/Rubenjoe
-
----
-
-> Celcia AI — A premium personal AI assistant with professional design and voice capabilities.
+**Ruben Joemon** — [@Rubenjoe](https://github.com/Rubenjoe)
