@@ -926,6 +926,64 @@
             color: var(--ink)
         }
 
+        .msg.assistant .msg-body p {
+            margin-bottom: 12px;
+        }
+
+        .msg.assistant .msg-body p:last-child {
+            margin-bottom: 0;
+        }
+
+        .msg.assistant .msg-body ul,
+        .msg.assistant .msg-body ol {
+            margin: 8px 0 14px 22px;
+        }
+
+        .msg.assistant .msg-body li {
+            margin-bottom: 5px;
+        }
+
+        .msg.assistant .msg-body pre {
+            background: var(--card);
+            border: 1px solid var(--line);
+            border-radius: var(--r-m);
+            padding: 14px 16px;
+            margin: 12px 0;
+            overflow-x: auto;
+            font-size: 13.5px;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            line-height: 1.55;
+        }
+
+        .msg.assistant .msg-body code {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-size: 13px;
+            background: var(--hover-fill-2);
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+
+        .msg.assistant .msg-body pre code {
+            background: transparent;
+            padding: 0;
+            border-radius: 0;
+            font-size: inherit;
+        }
+
+        .msg.assistant .msg-body blockquote {
+            border-left: 2px solid var(--accent);
+            padding-left: 14px;
+            margin: 12px 0;
+            color: var(--ink-2);
+            font-style: italic;
+        }
+
+        .msg.assistant .msg-body a {
+            color: var(--accent);
+            text-decoration: underline;
+            text-underline-offset: 3px;
+        }
+
         /* You write — your own hand */
         .msg.user .msg-body {
             font-family: var(--serif);
@@ -1365,6 +1423,28 @@
             letter-spacing: .1em;
             text-transform: uppercase;
             color: var(--ink-4)
+        }
+
+        .ledger-actions {
+            display: inline-flex;
+            gap: 6px;
+            margin-left: 8px;
+        }
+
+        .ledger-action-btn {
+            background: transparent;
+            border: none;
+            color: var(--ink-4);
+            font-size: 11px;
+            cursor: pointer;
+            padding: 2px 5px;
+            border-radius: 4px;
+            transition: color .15s, background-color .15s;
+        }
+
+        .ledger-action-btn:hover {
+            color: var(--accent);
+            background: var(--hover-fill);
         }
 
         .ledger-clear {
@@ -1835,730 +1915,7 @@
 
     <div class="toast-dock" id="toastDock"></div>
 
-    <script>
-        (function () {
-            "use strict";
-            var $ = function (id) { return document.getElementById(id); };
-            var root = document.documentElement;
-            var reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-            /* ============ Moon — real phase, drawn by hand ============ */
-            var SYNODIC = 29.53058867;
-            var EPOCH = Date.UTC(2000, 0, 6, 18, 14) / 86400000;
-
-            function moonPhase(d) {
-                var days = d.getTime() / 86400000 - EPOCH;
-                var p = (days % SYNODIC) / SYNODIC;
-                return p < 0 ? p + 1 : p;
-            }
-            function phaseName(p) {
-                if (p < .03 || p > .97) return 'New moon';
-                if (p < .22) return 'Waxing crescent';
-                if (p < .28) return 'First quarter';
-                if (p < .47) return 'Waxing gibbous';
-                if (p < .53) return 'Full moon';
-                if (p < .72) return 'Waning gibbous';
-                if (p < .78) return 'Last quarter';
-                return 'Waning crescent';
-            }
-
-            function drawMoon(cv, size) {
-                var dpr = Math.min(devicePixelRatio || 1, 2);
-                cv.width = size * dpr; cv.height = size * dpr;
-                cv.style.width = size + 'px'; cv.style.height = size + 'px';
-                var ctx = cv.getContext('2d');
-                ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-                var dark = root.getAttribute('data-theme') === 'dark';
-                var c = size / 2, r = c - 1;
-                var p = moonPhase(new Date());
-                /* night side */
-                ctx.beginPath(); ctx.arc(c, c, r, 0, Math.PI * 2);
-                ctx.fillStyle = dark ? '#222D26' : '#E2E0D2';
-                ctx.fill();
-                /* lit side */
-                var e = Math.cos(p * 2 * Math.PI), ccw = e > 0, waxing = p < 0.5;
-                ctx.beginPath();
-                if (waxing) {
-                    ctx.arc(c, c, r, -Math.PI / 2, Math.PI / 2, false);
-                    ctx.ellipse(c, c, Math.abs(e) * r, r, 0, Math.PI / 2, -Math.PI / 2, ccw);
-                } else {
-                    ctx.arc(c, c, r, Math.PI / 2, -Math.PI / 2, false);
-                    ctx.ellipse(c, c, Math.abs(e) * r, r, 0, -Math.PI / 2, Math.PI / 2, ccw);
-                }
-                ctx.closePath();
-                ctx.fillStyle = dark ? '#EAE7D8' : '#F2EDDA';
-                ctx.fill();
-                ctx.beginPath(); ctx.arc(c, c, r, 0, Math.PI * 2);
-                ctx.strokeStyle = dark ? 'rgba(234,231,216,.28)' : 'rgba(33,42,36,.22)';
-                ctx.lineWidth = 1;
-                ctx.stroke();
-            }
-
-            var PHASE = phaseName(moonPhase(new Date()));
-            $('phaseName').textContent = PHASE;
-
-            (function () {
-                var h = new Date().getHours();
-                var word = h < 12 ? 'this morning' : h < 18 ? 'this afternoon' : 'tonight';
-                $('emptyCopy').innerHTML = 'The moon above you is a <em>' + PHASE.toLowerCase() +
-                    '</em> ' + word + '. Ask in your own words — Celcia answers plainly and keeps the pages in order.';
-            })();
-
-            /* ============ Sky — stars in day and night ============ */
-            var sky = (function () {
-                var cv = $('sky'), ctx = cv.getContext('2d');
-                var stars = [], meteors = [], W, H, dpr;
-                /* tint roles: 0 = plain, 1 = accent green, 2 = rare gold */
-                var PAL_LIGHT = ['58,74,62', '46,122,95', '158,124,52'];
-                var PAL_DARK = ['234,231,216', '155,216,187', '216,180,104'];
-                function resize() {
-                    W = innerWidth; H = innerHeight;
-                    dpr = Math.min(devicePixelRatio || 1, 2);
-                    cv.width = W * dpr; cv.height = H * dpr;
-                    cv.style.width = W + 'px'; cv.style.height = H + 'px';
-                    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-                    makeStars();
-                }
-                function makeStars() {
-                    stars = [];
-                    var n = Math.round(W * H / 8500);
-                    for (var i = 0; i < n; i++) {
-                        var roll = Math.random();
-                        stars.push({
-                            x: Math.random() * W, y: Math.random() * H,
-                            r: .4 + Math.random() * 1.1,
-                            tw: Math.random() * Math.PI * 2,
-                            sp: .4 + Math.random() * .9,
-                            tint: roll < .85 ? 0 : roll < .95 ? 1 : 2
-                        });
-                    }
-                }
-                function frame(t) {
-                    var dark = root.getAttribute('data-theme') === 'dark';
-                    var pal = dark ? PAL_DARK : PAL_LIGHT;
-                    /* fainter on paper, full presence at night */
-                    var base = dark ? .22 : .16;
-                    var span = dark ? .5 : .34;
-                    ctx.clearRect(0, 0, W, H);
-                    for (var i = 0; i < stars.length; i++) {
-                        var s = stars[i];
-                        var a = reduceMotion ? (dark ? .55 : .4)
-                            : base + span * (0.5 + 0.5 * Math.sin(s.tw + t * .001 * s.sp));
-                        ctx.beginPath();
-                        ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
-                        ctx.fillStyle = 'rgba(' + pal[s.tint] + ',' + a.toFixed(3) + ')';
-                        ctx.fill();
-                    }
-                    if (!reduceMotion) {
-                        if (Math.random() < .0022 && meteors.length < 2) {
-                            meteors.push({
-                                x: W * (.3 + Math.random() * .7), y: H * Math.random() * .35,
-                                vx: -(5 + Math.random() * 4), vy: 2.4 + Math.random() * 1.8, life: 1
-                            });
-                        }
-                        var trail = dark ? '234,231,216' : '58,74,62';
-                        for (var m = meteors.length - 1; m >= 0; m--) {
-                            var M = meteors[m];
-                            var grad = ctx.createLinearGradient(M.x, M.y, M.x - M.vx * 9, M.y - M.vy * 9);
-                            grad.addColorStop(0, 'rgba(' + trail + ',' + (.8 * M.life) + ')');
-                            grad.addColorStop(1, 'rgba(' + trail + ',0)');
-                            ctx.strokeStyle = grad;
-                            ctx.lineWidth = 1.4;
-                            ctx.beginPath();
-                            ctx.moveTo(M.x, M.y);
-                            ctx.lineTo(M.x - M.vx * 9, M.y - M.vy * 9);
-                            ctx.stroke();
-                            M.x += M.vx; M.y += M.vy; M.life -= .022;
-                            if (M.life <= 0 || M.x < -60 || M.y > H + 60) meteors.splice(m, 1);
-                        }
-                    }
-                    requestAnimationFrame(frame);
-                }
-                addEventListener('resize', resize);
-                resize();
-                requestAnimationFrame(frame);
-                return { refresh: resize };
-            })();
-
-
-
-            /* ============ Theme + eclipse wipe ============ */
-            var FAVICONS = {
-                light: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23F3F2EA'/%3E%3Cellipse cx='32' cy='32' rx='26' ry='10' transform='rotate(-22 32 32)' fill='none' stroke='%232E7A5F' stroke-width='3'/%3E%3Ccircle cx='32' cy='32' r='7' fill='%23212A24'/%3E%3C/svg%3E",
-                dark: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%230D1310'/%3E%3Cellipse cx='32' cy='32' rx='26' ry='10' transform='rotate(-22 32 32)' fill='none' stroke='%238FD6B0' stroke-width='3'/%3E%3Ccircle cx='32' cy='32' r='7' fill='%23E7EDE6'/%3E%3C/svg%3E"
-            };
-            var METAS = { light: '#F3F2EA', dark: '#0D1310' };
-
-            function currentTheme() {
-                return root.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
-            }
-            function setTheme(t) {
-                root.setAttribute('data-theme', t);
-                $('favicon').setAttribute('href', FAVICONS[t]);
-                $('metaTheme').setAttribute('content', METAS[t]);
-                $('themeToggle').setAttribute('aria-label', t === 'dark' ? 'Switch to day' : 'Switch to night');
-                try { localStorage.setItem('celcia-theme', t); } catch (e) { }
-                drawMoon($('headMoon'), 20);
-                drawMoon($('bigMoon'), 56);
-            }
-            setTheme(currentTheme());
-
-            $('themeToggle').addEventListener('click', function () {
-                var next = currentTheme() === 'dark' ? 'light' : 'dark';
-                if (document.startViewTransition && !reduceMotion) {
-                    var r = this.getBoundingClientRect();
-                    var x = r.left + r.width / 2, y = r.top + r.height / 2;
-                    var vt = document.startViewTransition(function () { setTheme(next); });
-                    vt.ready.then(function () {
-                        var rad = Math.hypot(Math.max(x, W0() - x), Math.max(y, H0() - y));
-                        document.documentElement.animate(
-                            {
-                                clipPath: ['circle(0px at ' + x + 'px ' + y + 'px)',
-                                'circle(' + rad + 'px at ' + x + 'px ' + y + 'px)']
-                            },
-                            {
-                                duration: 700,
-                                easing: 'cubic-bezier(.4, 0, .2, 1)',
-                                pseudoElement: '::view-transition-new(root)'
-                            }
-                        );
-                    }).catch(function () { });
-                } else {
-                    root.classList.add('theme-anim');
-                    setTheme(next);
-                    setTimeout(function () { root.classList.remove('theme-anim'); }, 500);
-                }
-            });
-            function W0() { return innerWidth; }
-            function H0() { return innerHeight; }
-
-            /* ============ Refs / utilities ============ */
-            var sidebar = $('sidebar'), backdrop = $('backdrop'), menuBtn = $('menuBtn');
-            var chatList = $('chatList'), scroll = $('scroll'), emptyState = $('emptyState');
-            var input = $('input'), sendBtn = $('sendBtn'), statusRow = $('statusRow');
-            var attachRow = $('attachRow'), fileInput = $('fileInput');
-            var headTitle = $('headTitle');
-
-            function now() {
-                return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            }
-            function el(tag, cls, text) {
-                var n = document.createElement(tag);
-                if (cls) n.className = cls;
-                if (text != null) n.textContent = text;
-                return n;
-            }
-            function toast(msg) {
-                var t = el('div', 'toast', msg);
-                $('toastDock').appendChild(t);
-                setTimeout(function () {
-                    t.classList.add('bye');
-                    setTimeout(function () { t.remove(); }, 320);
-                }, 2300);
-            }
-            function nearBottom() {
-                return scroll.scrollHeight - scroll.scrollTop - scroll.clientHeight < 140;
-            }
-            function pin() { scroll.scrollTop = scroll.scrollHeight; }
-            function dayLabel(ts) {
-                var d = new Date(ts), t = new Date();
-                var day = 86400000;
-                var a = new Date(t.getFullYear(), t.getMonth(), t.getDate()).getTime();
-                if (ts >= a) return 'Today';
-                if (ts >= a - day) return 'Yest.';
-                return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
-            }
-
-            function tick() {
-                $('clock').textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            }
-            tick(); setInterval(tick, 5000);
-
-            /* ============ Sidebar (mobile) ============ */
-            function openSidebar() {
-                sidebar.classList.add('open'); backdrop.classList.add('show');
-                menuBtn.setAttribute('aria-expanded', 'true');
-            }
-            function closeSidebar() {
-                sidebar.classList.remove('open'); backdrop.classList.remove('show');
-                menuBtn.setAttribute('aria-expanded', 'false');
-            }
-            menuBtn.addEventListener('click', function () {
-                sidebar.classList.contains('open') ? closeSidebar() : openSidebar();
-            });
-            backdrop.addEventListener('click', closeSidebar);
-
-            /* ============ State ============ */
-            var chats = [], seq = 0, activeId = null, session = null;
-            function activeChat() {
-                for (var i = 0; i < chats.length; i++) if (chats[i].id === activeId) return chats[i];
-                return null;
-            }
-            function createChat(activate) {
-                if (activate) activeId = 'c' + (++seq);
-                var c = { id: 'c' + seq, title: 'Untitled page', messages: [], ts: Date.now() };
-                chats.unshift(c);
-                if (activate) { renderSidebar(); syncHeader(); }
-                return c;
-            }
-            function syncHeader() {
-                var c = activeChat();
-                headTitle.textContent = c && c.messages.length ? c.title : 'Celcia';
-            }
-            function titleFrom(text) {
-                if (!text) return 'Untitled page';
-                var t = text.replace(/\s+/g, ' ').trim();
-                return t.length > 38 ? t.slice(0, 38).replace(/\s+\S*$/, '') + '…' : t;
-            }
-
-            /* ============ The ledger of pages ============ */
-            var X_SVG = '<svg width="10" height="10" viewBox="0 0 20 20" fill="none"><path d="M5 5l10 10M15 5L5 15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
-
-            function renderSidebar() {
-                chatList.innerHTML = '';
-                if (!chats.length) {
-                    chatList.appendChild(el('p', 'list-empty', 'No pages yet — the book is blank.'));
-                    return;
-                }
-                chats.forEach(function (c) {
-                    var item = el('div', 'pg' + (c.id === activeId ? ' active' : ''));
-                    item.setAttribute('role', 'button'); item.tabIndex = 0;
-                    item.appendChild(el('span', 'pg-title', c.title));
-                    item.appendChild(el('i', 'pg-lead'));
-                    item.appendChild(el('span', 'pg-day', dayLabel(c.ts)));
-                    var del = el('button', 'pg-x');
-                    del.type = 'button';
-                    del.setAttribute('aria-label', 'Tear out this page');
-                    del.innerHTML = X_SVG;
-                    del.addEventListener('click', function (e) {
-                        e.stopPropagation();
-                        chats = chats.filter(function (x) { return x.id !== c.id; });
-                        if (activeId === c.id) {
-                            activeId = chats.length ? chats[0].id : null;
-                            renderThread();
-                        }
-                        renderSidebar(); syncHeader();
-                        toast('Page removed from the book');
-                    });
-                    item.appendChild(del);
-                    function pick() {
-                        activeId = c.id;
-                        renderSidebar(); renderThread(); syncHeader(); closeSidebar();
-                        input.focus();
-                    }
-                    item.addEventListener('click', pick);
-                    item.addEventListener('keydown', function (e) {
-                        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(); }
-                    });
-                    chatList.appendChild(item);
-                });
-            }
-            renderSidebar();
-
-            /* ============ Messages ============ */
-            var MINI_MARK = '<svg class="mark" viewBox="0 0 48 48" fill="none" aria-hidden="true"><ellipse cx="24" cy="24" rx="20" ry="7.5" transform="rotate(-22 24 24)" stroke="currentColor" stroke-width="2.4" opacity=".45"/><circle cx="24" cy="24" r="6" fill="currentColor"/><g transform="translate(24 24) rotate(-22) scale(1 0.38) translate(-24 -24)"><circle cx="24" cy="4" r="3.4" fill="currentColor"/></g></svg>';
-
-            function buildMessage(m) {
-                var art = el('article', 'msg ' + m.role);
-                var head = el('header', 'msg-head');
-                var name = el('span', 'msg-name');
-                if (m.role === 'assistant') {
-                    name.innerHTML = MINI_MARK;
-                    name.appendChild(document.createTextNode('Celcia'));
-                } else {
-                    name.textContent = 'You';
-                }
-                head.appendChild(name);
-                head.appendChild(el('time', 'msg-time', m.time));
-                art.appendChild(head);
-
-                art.appendChild(el('div', 'msg-body', m.text || ''));
-
-                if (m.files && m.files.length) {
-                    var row = el('div', 'msg-files');
-                    m.files.forEach(function (f) { row.appendChild(el('span', 'file-chip', f)); });
-                    art.appendChild(row);
-                }
-
-                var tools = el('footer', 'msg-tools');
-                var copy = el('button', 'tool');
-                copy.type = 'button';
-                copy.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none"><rect x="9" y="9" width="13" height="13" rx="2" stroke="currentColor" stroke-width="1.8"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" stroke="currentColor" stroke-width="1.8"/></svg> Copy';
-                copy.addEventListener('click', function () {
-                    if (navigator.clipboard && navigator.clipboard.writeText) {
-                        navigator.clipboard.writeText(m.text).then(function () { toast('Copied'); });
-                    } else {
-                        var ta = document.createElement('textarea');
-                        ta.value = m.text; document.body.appendChild(ta);
-                        ta.select(); document.execCommand('copy'); ta.remove();
-                        toast('Copied');
-                    }
-                });
-                tools.appendChild(copy);
-                art.appendChild(tools);
-                return art;
-            }
-
-            function renderThread() {
-                scroll.innerHTML = '';
-                var c = activeChat();
-                if (!c || !c.messages.length) {
-                    scroll.appendChild(emptyState);
-                    return;
-                }
-                c.messages.forEach(function (m, i) {
-                    if (m.role === 'user' && i > 0) {
-                        var b = el('div', 'break');
-                        b.appendChild(el('i'));
-                        scroll.appendChild(b);
-                    }
-                    var node = buildMessage(m);
-                    node.style.animation = 'none';
-                    scroll.appendChild(node);
-                });
-                pin();
-            }
-
-            $('newChatBtn').addEventListener('click', function () {
-                var c = activeChat();
-                if (c && c.messages.length === 0) { input.focus(); return; }
-                createChat(true);
-                renderThread();
-                closeSidebar();
-                input.focus();
-            });
-
-            /* ============ Replies — Celcia's own voice ============ */
-            var generic = [
-                "Straight answer first, caveats after: I can't pick your best option until I know what you're optimising for — speed, cost, or doing it right once. Tell me that and I'll commit to an answer.",
-                "Two ways to take this: narrow and exact, or wide with the context around it. Choose one. I'd rather be useful in a single direction than vague in both.",
-                "Here's my honest read — what you've described sounds like a symptom, not the problem. Walk me through what happens just before it goes sideways; that's usually where the real fault lives.",
-                "I'll be direct: I don't have enough to go on yet, and guessing would waste your time. One more sentence of context and I'll give you something you can actually use."
-            ];
-            var genericIdx = 0;
-            var kb = [
-                {
-                    re: /summar|document|pdf|article|paper/i,
-                    reply: "Send it over with the paperclip. I'll give you the shape of the argument first — claim, evidence, weak points — then a short version at the top so you can decide whether the long one is worth your time."
-                },
-                {
-                    re: /debug|code|error|bug|stack|crash/i,
-                    reply: "Paste the code and the exact error text. I'll start at the boundary between what the code expects and what it actually received — that's where most bugs live — and work inward from there."
-                },
-                {
-                    re: /email|draft|letter|message to/i,
-                    reply: "Three things and it's drafted: who's reading, what they should do afterward, and how much warmth you want. I'll write one careful version and one with a bit more spine."
-                },
-                {
-                    re: /explain|concept|simply|eli5|how does/i,
-                    reply: "Name it and I'll do it twice — once in a sentence you could say out loud to anyone, once with the nuance that sentence leaves out. That second pass is usually where understanding actually starts."
-                }
-            ];
-            function pickReply(text, files) {
-                if (files && files.length) {
-                    var names = files.slice(0, 3).join(', ') + (files.length > 3 ? ' and others' : '');
-                    return "I can see what you've shared — " + names + ". Tell me what you need from them: a summary, a critique, or a second pair of eyes. Nothing leaves this device.";
-                }
-                for (var i = 0; i < kb.length; i++) if (kb[i].re.test(text)) return kb[i].reply;
-                return generic[(genericIdx++) % generic.length];
-            }
-
-            /* ============ Thinking + printing ============ */
-            function namedMsg(cls) {
-                var art = el('article', 'msg ' + cls);
-                var head = el('header', 'msg-head');
-                var name = el('span', 'msg-name');
-                name.innerHTML = MINI_MARK;
-                name.appendChild(document.createTextNode('Celcia'));
-                head.appendChild(name);
-                head.appendChild(el('time', 'msg-time', now()));
-                art.appendChild(head);
-                return art;
-            }
-            function showThinking() {
-                var art = namedMsg('assistant thinking');
-                var line = el('div', 'thinking-line');
-                line.appendChild(el('span', 't-dot'));
-                line.appendChild(el('span', 't-dot'));
-                line.appendChild(el('span', 't-dot'));
-                art.appendChild(line);
-                scroll.appendChild(art);
-                pin();
-                return art;
-            }
-
-            var voiceOn = false;
-            $('voiceSwitch').addEventListener('click', function () {
-                voiceOn = this.getAttribute('aria-checked') !== 'true';
-                this.setAttribute('aria-checked', String(voiceOn));
-                if (!voiceOn && window.speechSynthesis) speechSynthesis.cancel();
-            });
-
-            function printReply(fullText) {
-                var art = namedMsg('assistant');
-                var body = el('div', 'msg-body');
-                var caret = el('span', 'cursor-caret');
-                body.appendChild(caret);
-                art.appendChild(body);
-                scroll.appendChild(art);
-
-                var words = fullText.split(' '), i = 0;
-                var timer = setInterval(function () {
-                    if (i >= words.length) {
-                        clearInterval(timer);
-                        caret.remove();
-                        if (voiceOn && window.speechSynthesis) {
-                            speechSynthesis.cancel();
-                            var u = new SpeechSynthesisUtterance(fullText);
-                            u.rate = 1;
-                            speechSynthesis.speak(u);
-                        }
-                        return;
-                    }
-                    caret.insertAdjacentText('beforebegin', (i ? ' ' : '') + words[i]);
-                    i++;
-                    if (nearBottom()) pin();
-                }, 40);
-            }
-
-            /* ============ Attachments ============ */
-            var attached = [];
-            function fmtSize(b) {
-                return b < 1024 ? b + ' B' : b < 1048576 ? (b / 1024).toFixed(0) + ' KB' : (b / 1048576).toFixed(1) + ' MB';
-            }
-            function renderAttachments() {
-                attachRow.innerHTML = '';
-                if (!attached.length) { attachRow.classList.add('hidden'); return; }
-                attachRow.classList.remove('hidden');
-                attached.forEach(function (f, i) {
-                    var chip = el('div', 'attach-chip');
-                    chip.appendChild(el('span', null, f.name));
-                    chip.appendChild(el('span', 'sz', fmtSize(f.size)));
-                    var x = el('button');
-                    x.type = 'button';
-                    x.setAttribute('aria-label', 'Remove ' + f.name);
-                    x.innerHTML = X_SVG;
-                    x.addEventListener('click', function () {
-                        attached.splice(i, 1); renderAttachments(); updateSend();
-                    });
-                    chip.appendChild(x);
-                    attachRow.appendChild(chip);
-                });
-            }
-            $('attachBtn').addEventListener('click', function () { fileInput.click(); });
-            fileInput.addEventListener('change', function () {
-                Array.prototype.forEach.call(fileInput.files, function (f) { attached.push(f); });
-                renderAttachments();
-                fileInput.value = '';
-                updateSend();
-            });
-
-            /* ============ Composer ============ */
-            function updateSend() {
-                var ready = input.value.trim().length > 0 || attached.length > 0;
-                sendBtn.classList.toggle('ready', ready);
-                sendBtn.disabled = !ready;
-            }
-            input.addEventListener('input', function () {
-                input.style.height = 'auto';
-                input.style.height = Math.min(input.scrollHeight, 160) + 'px';
-                updateSend();
-            });
-            input.addEventListener('keydown', function (e) {
-                if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
-            });
-            sendBtn.addEventListener('click', send);
-
-            document.addEventListener('keydown', function (e) {
-                if (e.key === '/' && document.activeElement !== input) {
-                    var t = e.target.tagName;
-                    if (t !== 'INPUT' && t !== 'TEXTAREA') { e.preventDefault(); input.focus(); }
-                }
-                if (e.key === 'Escape') {
-                    $('authPop').classList.add('hidden');
-                    $('memoryPop').classList.add('hidden');
-                    $('memoryBtn').classList.remove('on');
-                    closeSidebar();
-                }
-            });
-
-            /* ============ Send ============ */
-            var busy = false;
-            function send() {
-                if (busy) return;
-                var text = input.value.trim();
-                if (!text && !attached.length) return;
-                busy = true;
-
-                var chat = activeChat() || createChat(true);
-                var isNew = chat.messages.length === 0;
-
-                var msg = { role: 'user', text: text || '(attachments)', time: now() };
-                if (attached.length) msg.files = attached.map(function (f) { return f.name; });
-                chat.messages.push(msg);
-
-                if (isNew) {
-                    chat.title = titleFrom(text || msg.files[0]);
-                    renderSidebar();
-                    renderThread();
-                } else {
-                    if (scroll.contains(emptyState)) {
-                        scroll.innerHTML = '';
-                    } else if (scroll.children.length) {
-                        var b = el('div', 'break');
-                        b.appendChild(el('i'));
-                        scroll.appendChild(b);
-                    }
-                    scroll.appendChild(buildMessage(msg));
-                }
-                syncHeader();
-
-                var files = attached.map(function (f) { return f.name; });
-                input.value = ''; input.style.height = 'auto';
-                attached = []; renderAttachments(); updateSend();
-                pin();
-
-                var reply = pickReply(text, files);
-                var thinker = showThinking();
-                setTimeout(function () {
-                    thinker.remove();
-                    chat.messages.push({ role: 'assistant', text: reply, time: now() });
-                    printReply(reply);
-                    busy = false;
-                }, 700 + Math.random() * 600);
-            }
-
-            /* ============ Index entries ============ */
-            $('entries').addEventListener('click', function (e) {
-                var btn = e.target.closest('.entry');
-                if (!btn) return;
-                input.value = btn.querySelector('span').textContent;
-                input.dispatchEvent(new Event('input'));
-                input.focus();
-            });
-
-            /* ============ Dictation ============ */
-            var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-            var rec = null, recording = false;
-            $('micBtn').addEventListener('click', function () {
-                if (!SR) { toast('Voice input is not available in this browser'); return; }
-                if (recording) { rec.stop(); return; }
-                rec = new SR();
-                rec.lang = navigator.language || 'en-US';
-                rec.interimResults = true;
-                rec.continuous = false;
-                var base = input.value ? input.value + ' ' : '';
-                rec.onresult = function (e) {
-                    var t = '';
-                    for (var i = 0; i < e.results.length; i++) t += e.results[i][0].transcript;
-                    input.value = base + t;
-                    input.dispatchEvent(new Event('input'));
-                };
-                rec.onstart = function () {
-                    recording = true;
-                    $('micBtn').classList.add('rec');
-                    $('micBtn').setAttribute('aria-pressed', 'true');
-                    statusRow.classList.add('rec');
-                    statusRow.innerHTML = '<span class="rec-dot"></span>Listening\u2026';
-                };
-                rec.onend = rec.onerror = function () {
-                    recording = false;
-                    $('micBtn').classList.remove('rec');
-                    $('micBtn').setAttribute('aria-pressed', 'false');
-                    statusRow.classList.remove('rec');
-                    statusRow.innerHTML = '';
-                };
-                rec.start();
-            });
-
-            /* ============ Sign the book (auth) ============ */
-            var authPop = $('authPop'), authBtn = $('authBtn');
-            authBtn.addEventListener('click', function (e) {
-                e.stopPropagation();
-                if (session) { signOut(); return; }
-                var hidden = authPop.classList.contains('hidden');
-                authPop.classList.toggle('hidden');
-                if (hidden) $('authEmail').focus();
-            });
-            document.addEventListener('click', function (e) {
-                if (!authPop.classList.contains('hidden') &&
-                    !authPop.contains(e.target) && !authBtn.contains(e.target)) {
-                    authPop.classList.add('hidden');
-                }
-            });
-            $('authForm').addEventListener('submit', function (e) {
-                e.preventDefault();
-                var email = $('authEmail').value.trim(), pw = $('authPassword').value;
-                var err = $('authErr');
-                if (!/^\S+@\S+\.\S+$/.test(email)) { err.textContent = 'That email does not look right — check it once more.'; return; }
-                if (pw.length < 4) { err.textContent = 'At least four characters for the password, please.'; return; }
-                err.textContent = '';
-                session = { email: email, name: email.split('@')[0] };
-                applySession();
-                authPop.classList.add('hidden');
-                $('authPassword').value = '';
-                toast('Signed the book as ' + session.name);
-            });
-            function initials(name) {
-                return name.split(/[\s._-]+/).slice(0, 2).map(function (p) { return p[0] || ''; }).join('').toUpperCase() || 'C';
-            }
-            function applySession() {
-                if (session) {
-                    authBtn.textContent = 'Account';
-                    $('accountBlock').classList.remove('hidden');
-                    $('avatarEl').textContent = initials(session.name);
-                    $('acctName').textContent = session.name;
-                    $('acctMail').textContent = session.email;
-                } else {
-                    authBtn.textContent = 'Sign in';
-                    $('accountBlock').classList.add('hidden');
-                }
-            }
-            function signOut() {
-                session = null;
-                applySession();
-                toast('Signed out — the book stays put');
-            }
-            $('signOutSide').addEventListener('click', signOut);
-
-            /* ============ The ledger (memory) ============ */
-            var memories = [
-                { text: 'Prefers short answers — gets to the point quickly.', day: 'Mar 12' },
-                { text: 'Working on a personal project, usually in the evenings.', day: 'Mar 08' },
-                { text: 'Reads carefully — likes sources named outright.', day: 'Feb 27' }
-            ];
-            function renderMemory() {
-                var list = $('memList');
-                list.innerHTML = '';
-                if (!memories.length) {
-                    list.appendChild(el('p', 'list-empty', 'Nothing kept yet — it comes with conversation.'));
-                    return;
-                }
-                memories.forEach(function (m, i) {
-                    var row = el('div', 'ledger-item');
-                    row.style.animationDelay = (i * 60) + 'ms';
-                    row.appendChild(el('span', null, m.text));
-                    row.appendChild(el('small', null, m.day));
-                    list.appendChild(row);
-                });
-            }
-            renderMemory();
-            $('memoryBtn').addEventListener('click', function () {
-                var pop = $('memoryPop');
-                var hidden = pop.classList.contains('hidden');
-                pop.classList.toggle('hidden');
-                this.classList.toggle('on', hidden);
-                this.setAttribute('aria-pressed', String(hidden));
-            });
-            $('memClear').addEventListener('click', function () {
-                memories = [];
-                renderMemory();
-                toast('Ledger cleared');
-            });
-
-            input.focus();
-        })();
-    </script>
+    <script src="script.js"></script>
 </body>
 
 </html>

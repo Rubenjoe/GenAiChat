@@ -1,5 +1,11 @@
 """Environment-backed configuration for Celcia."""
 import os
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
 
 
 def env(name: str, default: str | None = None) -> str | None:
