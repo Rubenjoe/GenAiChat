@@ -803,10 +803,16 @@
         const text = input.value.trim();
         if (!text && !attachedFiles.length) return;
 
-        if (!accessToken) {
+        // Guest mode: allow chat without authentication
+        // Attached files require auth since they need storage
+        const isGuest = !accessToken && !attachedFiles.length;
+        if (!accessToken && attachedFiles.length) {
             if (authPop) authPop.classList.remove('hidden');
-            toast('Sign in to start a private conversation with Celcia.');
+            toast('Sign in to upload attachments.');
             return;
+        }
+        if (!accessToken && !attachedFiles.length && authPop) {
+            // Don't auto-show auth popup for guest chat - just proceed
         }
 
         isSending = true;
@@ -815,7 +821,7 @@
         const sendingFiles = [...attachedFiles];
         const filesNames = sendingFiles.map((f) => f.name);
 
-        // Upload attachments first
+        // Upload attachments first (only for authenticated users)
         let documentIds = [];
         if (sendingFiles.length) {
             if (statusRow) statusRow.textContent = 'Uploading attachments…';
@@ -923,7 +929,10 @@
             if (scroll) scroll.appendChild(buildMessageNode(assistantMsg));
             pin();
 
-            loadConversations();
+            // Only load conversations for authenticated users
+            if (accessToken) {
+                loadConversations();
+            }
             syncHeader();
 
             if (autoVoiceEnabled) {
@@ -1026,58 +1035,56 @@
     }
 
     async function listenToResponse(text, { automatic = false } = {}) {
-        if (!text) return;
-        stopAudio();
+            if (!text) return;
+            stopAudio();
 
-        if (!accessToken) {
-            toast('Sign in to listen to Celcia’s voice.');
-            return;
-        }
+            // Guest mode: allow voice playback without authentication
+            const isGuest = !accessToken;
 
-        if (statusRow) statusRow.textContent = 'Preparing voice…';
+            if (statusRow) statusRow.textContent = 'Preparing voice…';
 
-        try {
-            const res = await fetch('/api/voice', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    ...authHeaders()
-                },
-                body: JSON.stringify({ text: spokenText(text) })
-            });
+            try {
+                const res = await fetch('/api/voice', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...authHeaders()
+                    },
+                    body: JSON.stringify({ text: spokenText(text) })
+                });
 
-            if (!res.ok) {
+                if (!res.ok) {
+                    if (statusRow) statusRow.textContent = '';
+                    if (!automatic) toast('Voice playback is unavailable right now.');
+                    return;
+                }
+
+                const audioBlob = await res.blob();
+                const audioUrl = URL.createObjectURL(audioBlob);
+                const audio = new Audio(audioUrl);
+                currentAudio = audio;
+
+                if (statusRow) statusRow.textContent = 'Celcia is speaking…';
+
+                audio.addEventListener('ended', () => {
+                    URL.revokeObjectURL(audioUrl);
+                    if (currentAudio === audio) currentAudio = null;
+                    if (statusRow) statusRow.textContent = '';
+                });
+
+                audio.addEventListener('error', () => {
+                    URL.revokeObjectURL(audioUrl);
+                    if (currentAudio === audio) currentAudio = null;
+                    if (statusRow) statusRow.textContent = '';
+                });
+
+                await audio.play();
+            } catch (err) {
+                console.error('Audio playback error:', err);
                 if (statusRow) statusRow.textContent = '';
-                if (!automatic) toast('Voice playback is unavailable right now.');
-                return;
+                if (!automatic) toast('Voice playback failed.');
             }
-
-            const audioBlob = await res.blob();
-            const audioUrl = URL.createObjectURL(audioBlob);
-            const audio = new Audio(audioUrl);
-            currentAudio = audio;
-
-            if (statusRow) statusRow.textContent = 'Celcia is speaking…';
-
-            audio.addEventListener('ended', () => {
-                URL.revokeObjectURL(audioUrl);
-                if (currentAudio === audio) currentAudio = null;
-                if (statusRow) statusRow.textContent = '';
-            });
-
-            audio.addEventListener('error', () => {
-                URL.revokeObjectURL(audioUrl);
-                if (currentAudio === audio) currentAudio = null;
-                if (statusRow) statusRow.textContent = '';
-            });
-
-            await audio.play();
-        } catch (err) {
-            console.error('Audio playback error:', err);
-            if (statusRow) statusRow.textContent = '';
-            if (!automatic) toast('Voice playback failed.');
         }
-    }
 
     // ============ Read Aloud Switch ============
     if (voiceSwitch) {

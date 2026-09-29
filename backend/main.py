@@ -21,7 +21,7 @@ from pydantic import BaseModel
 from typing import List, Optional
 import logging
 import requests
-from .config import CELCIA_OWNER_EMAIL, SUPABASE_ANON_KEY, SUPABASE_URL
+from .config import CELCIA_OWNER_EMAIL, SUPABASE_ANON_KEY, SUPABASE_URL, AI_PROVIDER, VOICE_PROVIDER, NIM_API_KEY, ELEVENLABS_API_KEY, OPENROUTER_API_KEY
 from .context import build_system_prompt
 from .documents import chunk_text, extract_upload, relevant_chunks
 from .memory import choose_follow_up, extract_candidate, matching_memory
@@ -35,8 +35,8 @@ _ai_service = None
 def get_ai_service():
     global _ai_service
     if _ai_service is None:
-        from .ai import OpenRouterAI
-        _ai_service = OpenRouterAI()
+        from .ai import get_ai_provider
+        _ai_service = get_ai_provider()
     return _ai_service
 
 # Lazy voice import: only needed for /voice. This lets the app boot even when
@@ -46,20 +46,35 @@ _voice_service = None
 def get_voice_service():
     global _voice_service
     if _voice_service is None:
-        from .voice import ElevenLabsVoice
-        _voice_service = ElevenLabsVoice()
+        from .voice import get_voice_provider
+        _voice_service = get_voice_provider()
     return _voice_service
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("Celcia AI starting...")
-    or_key = bool(os.getenv("OPENROUTER_API_KEY"))
-    el_key = bool(os.getenv("ELEVENLABS_API_KEY"))
-    el_voice = bool(os.getenv("ELEVENLABS_VOICE_ID"))
-    print(f"OpenRouter API key: {'configured' if or_key else 'NOT configured'}")
-    print(f"ElevenLabs API key: {'configured' if el_key else 'NOT configured'}")
-    print(f"ElevenLabs voice ID: {'configured' if el_voice else 'NOT configured'}")
+    ai_provider = AI_PROVIDER or "openrouter"
+    voice_provider = VOICE_PROVIDER or "elevenlabs"
+    
+    if ai_provider == "nim":
+        nim_key = bool(NIM_API_KEY)
+        print(f"NVIDIA NIM API key: {'configured' if nim_key else 'NOT configured'}")
+    else:
+        or_key = bool(OPENROUTER_API_KEY)
+        print(f"OpenRouter API key: {'configured' if or_key else 'NOT configured'}")
+    
+    if voice_provider == "nim":
+        nim_key = bool(NIM_API_KEY)
+        print(f"NVIDIA NIM TTS API key: {'configured' if nim_key else 'NOT configured'}")
+    else:
+        el_key = bool(ELEVENLABS_API_KEY)
+        el_voice = bool(os.getenv("ELEVENLABS_VOICE_ID"))
+        print(f"ElevenLabs API key: {'configured' if el_key else 'NOT configured'}")
+        print(f"ElevenLabs voice ID: {'configured' if el_voice else 'NOT configured'}")
+    
+    print(f"AI Provider: {ai_provider}")
+    print(f"Voice Provider: {voice_provider}")
     yield
     print("Celcia AI shutting down...")
 
@@ -148,12 +163,14 @@ def document_metadata(name: str, file_type: str, size: int, conversation_id: str
     return metadata
 
 
-def current_user(authorization: str | None = Header(default=None)) -> dict:
-    """Validate the Supabase session server-side and enforce the owner email."""
+def current_user(authorization: str | None = Header(default=None)) -> dict | None:
+    """Validate the Supabase session server-side and enforce the owner email.
+    Returns None if no auth provided (guest mode) or if auth is not configured."""
     if not authorization or not authorization.lower().startswith("bearer "):
-        raise HTTPException(status_code=401, detail={"error": "authentication_error", "message": "Sign in to use Celcia."})
+        return None
     if not SUPABASE_URL or not SUPABASE_ANON_KEY:
-        raise HTTPException(status_code=503, detail={"error": "configuration_error", "message": "Authentication is not configured."})
+        # Auth not configured - treat as guest
+        return None
     token = authorization.split(" ", 1)[1].strip()
     try:
         response = requests.get(
@@ -165,11 +182,18 @@ def current_user(authorization: str | None = Header(default=None)) -> dict:
         logger.error("Supabase session validation failed: %s", exc)
         raise HTTPException(status_code=503, detail={"error": "authentication_error", "message": "Authentication service is unavailable."})
     if not response.ok:
-        raise HTTPException(status_code=401, detail={"error": "authentication_error", "message": "Your session is invalid or expired."})
+        return None
     user = response.json()
     if CELCIA_OWNER_EMAIL and user.get("email", "").lower() != CELCIA_OWNER_EMAIL.lower():
         raise HTTPException(status_code=403, detail={"error": "authorization_error", "message": "This account is not authorized for Celcia."})
     user["_access_token"] = token
+    return user
+
+
+def require_user(user: dict | None = Depends(current_user)) -> dict:
+    """Dependency that requires authentication - raises 401 for guests."""
+    if user is None:
+        raise HTTPException(status_code=401, detail={"error": "authentication_error", "message": "Sign in to use this feature."})
     return user
 
 
@@ -212,18 +236,18 @@ async def login(request: LoginRequest):
 
 
 @app.get("/api/auth/session")
-async def session(user: dict = Depends(current_user)):
+async def session(user: dict = Depends(require_user)):
     return {"user": {"id": user.get("id"), "email": user.get("email")}}
 
 
 @app.get("/api/profile")
-async def get_profile(user: dict = Depends(current_user)):
+async def get_profile(user: dict = Depends(require_user)):
     rows = get_store().select("profiles", user["id"], user_token=user["_access_token"], limit=1)
     return rows[0] if rows else {"user_id": user["id"]}
 
 
 @app.put("/api/profile")
-async def update_profile(profile: dict, user: dict = Depends(current_user)):
+async def update_profile(profile: dict, user: dict = Depends(require_user)):
     allowed = {"name", "bio", "education", "interests", "goals", "preferences"}
     values = {key: value for key, value in profile.items() if key in allowed}
     store = get_store()
@@ -231,52 +255,52 @@ async def update_profile(profile: dict, user: dict = Depends(current_user)):
 
 
 @app.get("/api/memories")
-async def list_memories(user: dict = Depends(current_user)):
+async def list_memories(user: dict = Depends(require_user)):
     return get_store().select("memories", user["id"], user_token=user["_access_token"], query={"order": "updated_at.desc"})
 
 
 @app.post("/api/memories")
-async def create_memory(memory: MemoryRequest, user: dict = Depends(current_user)):
+async def create_memory(memory: MemoryRequest, user: dict = Depends(require_user)):
     if not memory.content.strip() or extract_candidate(memory.content) is None:
         raise HTTPException(status_code=400, detail={"error": "memory_error", "message": "Only useful, non-secret personal facts can be saved."})
     return get_store().insert("memories", {"user_id": user["id"], **memory.model_dump()}, user_token=user["_access_token"])
 
 
 @app.patch("/api/memories/{memory_id}")
-async def update_memory(memory_id: str, memory: MemoryRequest, user: dict = Depends(current_user)):
+async def update_memory(memory_id: str, memory: MemoryRequest, user: dict = Depends(require_user)):
     return get_store().update("memories", memory_id, user["id"], memory.model_dump(), user_token=user["_access_token"])
 
 
 @app.delete("/api/memories/{memory_id}")
-async def delete_memory(memory_id: str, user: dict = Depends(current_user)):
+async def delete_memory(memory_id: str, user: dict = Depends(require_user)):
     get_store().delete("memories", memory_id, user["id"], user_token=user["_access_token"])
     return {"status": "deleted"}
 
 
 @app.delete("/api/memories")
-async def clear_memories(user: dict = Depends(current_user)):
+async def clear_memories(user: dict = Depends(require_user)):
     for memory in get_store().select("memories", user["id"], user_token=user["_access_token"], limit=500):
         get_store().delete("memories", memory["id"], user["id"], user_token=user["_access_token"])
     return {"status": "cleared"}
 
 
 @app.get("/api/conversations")
-async def list_conversations(user: dict = Depends(current_user)):
+async def list_conversations(user: dict = Depends(require_user)):
     return get_store().select("conversations", user["id"], user_token=user["_access_token"], query={"order": "updated_at.desc"})
 
 
 @app.get("/api/conversations/{conversation_id}/messages")
-async def list_messages(conversation_id: str, user: dict = Depends(current_user)):
+async def list_messages(conversation_id: str, user: dict = Depends(require_user)):
     return get_store().select("messages", user["id"], user_token=user["_access_token"], query={"conversation_id": f"eq.{conversation_id}", "order": "created_at.asc"})
 
 
 @app.get("/api/documents")
-async def list_documents(user: dict = Depends(current_user)):
+async def list_documents(user: dict = Depends(require_user)):
     return get_store().select("documents", user["id"], user_token=user["_access_token"], query={"order": "created_at.desc"})
 
 
 @app.post("/api/documents")
-async def create_document(document: DocumentRequest, user: dict = Depends(current_user)):
+async def create_document(document: DocumentRequest, user: dict = Depends(require_user)):
     if not document.name.strip() or not document.content.strip():
         raise HTTPException(status_code=400, detail={"error": "document_error", "message": "A document name and content are required."})
     saved = get_store().insert("documents", {"user_id": user["id"], "name": document.name.strip(), "metadata": document_metadata(document.name, "text", len(document.content.encode("utf-8")))}, user_token=user["_access_token"])
@@ -287,7 +311,7 @@ async def create_document(document: DocumentRequest, user: dict = Depends(curren
 
 
 @app.post("/api/documents/upload")
-async def upload_document(file: UploadFile = File(...), conversation_id: Optional[str] = Form(default=None), user: dict = Depends(current_user)):
+async def upload_document(file: UploadFile = File(...), conversation_id: Optional[str] = Form(default=None), user: dict = Depends(require_user)):
     """Validate, extract, and store a browser attachment in the existing document tables."""
     name, file_type, size, content = await extract_upload(file)
     store = get_store()
@@ -306,11 +330,46 @@ async def upload_document(file: UploadFile = File(...), conversation_id: Optiona
 
 
 @app.post("/api/chat", response_model=ChatResponse)
-async def chat(request: ChatRequest, user: dict = Depends(current_user)):
-    """Generate AI response using OpenRouter."""
+async def chat(request: ChatRequest, authorization: str | None = Header(default=None)):
+    """Generate AI response using configured provider (OpenRouter or NVIDIA NIM)."""
+    # Validate user (guest or authenticated)
+    user = None
+    if authorization and authorization.lower().startswith("bearer "):
+        try:
+            # Try to authenticate - will raise if invalid
+            from .config import SUPABASE_URL, SUPABASE_ANON_KEY, CELCIA_OWNER_EMAIL
+            import requests
+            if SUPABASE_URL and SUPABASE_ANON_KEY:
+                token = authorization.split(" ", 1)[1].strip()
+                response = requests.get(
+                    f"{SUPABASE_URL.rstrip('/')}/auth/v1/user",
+                    headers={"apikey": SUPABASE_ANON_KEY, "Authorization": "Bearer " + token},
+                    timeout=10,
+                )
+                if response.ok:
+                    user_data = response.json()
+                    if not CELCIA_OWNER_EMAIL or user_data.get("email", "").lower() == CELCIA_OWNER_EMAIL.lower():
+                        user_data["_access_token"] = token
+                        user = user_data
+        except Exception:
+            pass  # Treat as guest if auth fails
+    
     try:
         user_message = request.messages[-1].content if request.messages else ""
         history = [msg.model_dump() for msg in request.messages[:-1]]
+        
+        # Guest mode: skip all storage operations
+        if user is None:
+            response = get_ai_service().generate_response(
+                user_message, history, build_system_prompt(None, [], user_message, follow_up=None, document_chunks=[])
+            )
+            conversation_id = "guest-" + str(int(datetime.now(timezone.utc).timestamp() * 1000))
+            return ChatResponse(
+                message=response,
+                conversation_id=conversation_id,
+            )
+        
+        # Authenticated user mode - full persistence
         store = get_store()
         profile_rows = store.select("profiles", user["id"], user_token=user["_access_token"], limit=1)
         memories = store.select("memories", user["id"], user_token=user["_access_token"], limit=100)
@@ -373,8 +432,29 @@ async def chat(request: ChatRequest, user: dict = Depends(current_user)):
 
 
 @app.post("/api/voice")
-async def generate_voice(request: VoiceRequest, user: dict = Depends(current_user)):
-    """Generate audio from text using ElevenLabs. Returns audio/mpeg bytes."""
+async def generate_voice(request: VoiceRequest, authorization: str | None = Header(default=None)):
+    """Generate audio from text using configured provider (ElevenLabs or NVIDIA NIM). Returns audio/mpeg bytes."""
+    # Validate user (guest or authenticated) - same logic as chat
+    user = None
+    if authorization and authorization.lower().startswith("bearer "):
+        try:
+            from .config import SUPABASE_URL, SUPABASE_ANON_KEY, CELCIA_OWNER_EMAIL
+            import requests
+            if SUPABASE_URL and SUPABASE_ANON_KEY:
+                token = authorization.split(" ", 1)[1].strip()
+                response = requests.get(
+                    f"{SUPABASE_URL.rstrip('/')}/auth/v1/user",
+                    headers={"apikey": SUPABASE_ANON_KEY, "Authorization": "Bearer " + token},
+                    timeout=10,
+                )
+                if response.ok:
+                    user_data = response.json()
+                    if not CELCIA_OWNER_EMAIL or user_data.get("email", "").lower() == CELCIA_OWNER_EMAIL.lower():
+                        user_data["_access_token"] = token
+                        user = user_data
+        except Exception:
+            pass  # Treat as guest if auth fails
+    
     try:
         audio_bytes = get_voice_service().generate_audio(request.text)
         return Response(
