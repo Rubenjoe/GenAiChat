@@ -1,172 +1,235 @@
-# Celcia AI 🤖
+# Celcia AI — Personal AI Assistant
 
-> A personal AI assistant built from scratch with a dark, ChatGPT/Grok-inspired interface, persistent conversations, long-term memory, authentication, and voice output.
+Celcia AI is a full-stack personal AI assistant built around conversational AI, persistent chat history, long-term memory, authentication, and voice generation. It combines a browser interface with a FastAPI backend and external AI services to demonstrate the engineering involved in building a complete AI product beyond a simple LLM API call.
 
-**Stack:** Python · FastAPI · HTML/CSS/JavaScript · OpenRouter · Supabase · ElevenLabs
+**Stack:** Python · FastAPI · HTML · CSS · JavaScript · OpenRouter · Supabase · ElevenLabs
 
-## Why this project
+> **Project status:** Personal / private assistant. Review authentication, database policies, and deployment configuration before exposing an instance publicly.
 
-Celcia AI started as a chatbot experiment and evolved into a small full-stack AI application. The goal was not just to call an LLM API, but to build the surrounding product: authentication, conversation persistence, memory, voice output, API boundaries, and a usable interface.
+## Features
 
-## What it does
-
-- **AI conversations** through OpenRouter with configurable models
-- **Persistent chats** stored in Supabase
-- **Authentication + Row Level Security** for private data
-- **Long-term memory** with bounded relevance-based retrieval
-- **Voice output** through ElevenLabs
-- **Regenerate / copy / listen** actions for responses
-- **Conversation switching** and new-chat management
-- **Markdown rendering** for richer responses
-- **Responsive dark UI** for desktop and mobile
-- **FastAPI backend** separating frontend behaviour from external API credentials
+- **AI conversations:** Generate responses through OpenRouter with a configurable model.
+- **Persistent chat history:** Store and retrieve conversations using Supabase.
+- **Authentication and access control:** Integrate Supabase authentication and Row Level Security (RLS) for application data.
+- **Long-term memory:** Store selected memories and retrieve relevant items using bounded lexical relevance.
+- **Voice output:** Convert assistant responses to speech through ElevenLabs.
+- **Conversation management:** Create chats, switch between conversations, and revisit saved messages.
+- **Response actions:** Copy, regenerate, or listen to assistant responses.
+- **Markdown rendering:** Present structured assistant responses with sanitisation before rendering.
+- **Responsive interface:** Dark-themed browser UI designed for desktop and mobile.
+- **Backend integrations:** Keep LLM and voice provider calls behind a FastAPI service rather than exposing provider credentials in the browser.
 
 ## Architecture
 
 ```text
-┌──────────────┐
-│    Browser   │
-│ HTML/CSS/JS  │
-└──────┬───────┘
-       │
-       ▼
-┌──────────────┐
-│   FastAPI    │
-│   Backend    │
-└──────┬───────┘
-       │
- ┌─────┴───────────────┐
- ▼                     ▼
-OpenRouter           Supabase
-LLM responses        Auth + data
- │
- ▼
-ElevenLabs
-Voice output
+┌────────────────────────────┐
+│      Browser Interface     │
+│    HTML / CSS / JavaScript │
+└──────────────┬─────────────┘
+               │ HTTP requests
+               ▼
+┌────────────────────────────┐
+│          FastAPI           │
+│ Auth · Chat · Memory       │
+│ Conversations · Voice      │
+└───────┬─────────┬──────────┘
+        │         │
+        ▼         ▼
+┌────────────┐ ┌────────────────┐
+│ OpenRouter │ │    Supabase    │
+│ LLM calls  │ │ Auth + Postgres│
+└────────────┘ └────────────────┘
+        │
+        ▼
+┌────────────────────────────┐
+│          ElevenLabs        │
+│         Text-to-Speech     │
+└────────────────────────────┘
 ```
 
-## Project structure
+This is a high-level view of the documented integrations. Exact behaviour depends on the active configuration and provider settings.
+
+## Technology Stack
+
+| Layer | Technology |
+|---|---|
+| Frontend | HTML5, CSS3, JavaScript |
+| Backend | Python, FastAPI |
+| Language-model gateway | OpenRouter |
+| Authentication and persistence | Supabase |
+| Database | PostgreSQL via Supabase |
+| Voice generation | ElevenLabs |
+| API communication | HTTP / JSON |
+| Local configuration | Environment variables |
+
+## Repository Structure
 
 ```text
 GenAiChat/
-├── index.html
-├── style.css
-├── script.js
+├── index.html             # Browser interface
+├── style.css              # Layout and visual styling
+├── script.js              # Frontend interaction logic
 ├── backend/
-│   ├── main.py
-│   ├── ai.py
-│   └── voice.py
+│   ├── main.py            # FastAPI application and routes
+│   ├── ai.py              # LLM integration
+│   └── voice.py           # Voice-generation integration
 ├── supabase/
-│   └── schema.sql
-├── .env.example
-├── requirements.txt
+│   └── schema.sql         # Database schema
+├── .env.example           # Environment variable template
+├── requirements.txt       # Python dependencies
 ├── .gitignore
 └── README.md
 ```
 
-## Running locally
+## Requirements
 
-### Requirements
+- Python 3.10 or newer
+- Git
+- A Supabase project with the required schema and authentication configuration
+- An OpenRouter API key and a model available to that key
+- An ElevenLabs API key and voice ID for text-to-speech
 
-- Python 3.10+
-- A Supabase project
-- An OpenRouter API key
-- An ElevenLabs API key for voice output
+Voice generation requires ElevenLabs configuration. Check the backend implementation and `.env.example` for the exact variables required by your local version.
 
-### Setup
+## Getting Started
+
+### 1. Clone the repository
 
 ```bash
 git clone https://github.com/Rubenjoe/GenAiChat.git
 cd GenAiChat
-python -m venv venv
 ```
 
-Windows:
+### 2. Create and activate a virtual environment
+
+**Windows PowerShell**
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+```
+
+**macOS / Linux**
 
 ```bash
-venv\Scripts\activate
+python3 -m venv .venv
+source .venv/bin/activate
 ```
 
-macOS/Linux:
+### 3. Install dependencies
 
 ```bash
-source venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
 ```
 
-Install dependencies:
+### 4. Configure environment variables
 
-```bash
-pip install -r requirements.txt
+Copy `.env.example` to `.env` and use the exact variable names defined in that file. The project documentation includes variables in this general form:
+
+```env
+OPENROUTER_API_KEY=your_openrouter_api_key
+OPENROUTER_MODEL=openrouter/free
+ELEVENLABS_API_KEY=your_elevenlabs_api_key
+ELEVENLABS_VOICE_ID=your_elevenlabs_voice_id
+SUPABASE_URL=your_supabase_project_url
+SUPABASE_ANON_KEY=your_supabase_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
+CELCIA_OWNER_EMAIL=your_auth_email
 ```
 
-Create `.env` from `.env.example` and provide the required credentials.
+The values above are placeholders, not working credentials. Confirm the required variables and defaults in the repository's `.env.example`.
 
-Start the backend:
+**Security:** Never commit `.env`, provider keys, database passwords, or Supabase service-role credentials. Keep privileged credentials on the server only. If a secret is committed accidentally, revoke and rotate it with the provider.
+
+### 5. Prepare Supabase
+
+1. Create or select a Supabase project.
+2. Review `supabase/schema.sql` and apply the schema to the intended development database.
+3. Check the authentication settings and Row Level Security policies for application tables.
+4. Configure the project URL and keys in the local environment.
+5. Test using a non-production account before entering real data.
+
+The presence of RLS support does not by itself guarantee secure access rules. Review the policies that are actually applied to your database.
+
+### 6. Start the application
+
+Run the backend from the repository root:
 
 ```bash
 python backend/main.py
 ```
 
-Then open `http://localhost:8000`.
+The repository documentation uses `http://localhost:8000` as the local address. Use the address and port printed by the application if they differ.
 
-## Environment variables
+## Documented API Surface
 
-Use the variable names documented in `.env.example`. Typical values include:
+The project documents these routes. Confirm exact request schemas, supported methods, and authentication behaviour in the current backend implementation.
 
-```env
-OPENROUTER_API_KEY=your_key
-OPENROUTER_MODEL=openrouter/free
-ELEVENLABS_API_KEY=your_key
-ELEVENLABS_VOICE_ID=your_voice_id
-SUPABASE_URL=your_project_url
-SUPABASE_ANON_KEY=your_anon_key
-SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
-CELCIA_OWNER_EMAIL=your_auth_email
-```
+| Method | Endpoint | Purpose |
+|---|---|---|
+| `POST` | `/api/chat` | Generate an authenticated AI response |
+| `POST` | `/api/voice` | Generate speech from text |
+| `GET` | `/api/health` | Health check |
+| `POST` | `/api/auth/login` | Authenticate a user |
+| `GET` | `/api/auth/session` | Retrieve session information |
+| `GET`, `PUT` | `/api/profile` | Read or update profile data |
+| Related methods | `/api/memories` | Memory management |
+| Related methods | `/api/conversations` | Conversation retrieval and management |
+| Related methods | `/api/documents` | Document content and metadata operations |
 
-**Never commit `.env`, service-role keys, database passwords, or access tokens.** The service-role credential is intended for the backend only.
+## Security and Privacy
 
-## API surface
+The application handles private conversations and external service credentials, so security needs to be considered before deployment.
 
-| Endpoint | Purpose |
-|---|---|
-| `POST /api/chat` | Generate an authenticated AI response |
-| `POST /api/voice` | Generate speech from text |
-| `GET /api/health` | Service health check |
-| `POST /api/auth/login` | Authenticate the user |
-| `GET /api/auth/session` | Retrieve the current session |
-| `GET/PUT /api/profile` | Read/update profile data |
-| `/api/memories` | Manage stored memories |
-| `/api/conversations` | List and retrieve conversations |
-| `/api/documents` | Store document content/metadata |
+- Keep OpenRouter, ElevenLabs, and privileged Supabase credentials on the server.
+- Never commit environment files, access tokens, or passwords.
+- Verify authentication and authorisation on every route that exposes private user data.
+- Review RLS policies to ensure users can access only the data they are permitted to read or modify.
+- Sanitise Markdown output and do not render model output as trusted HTML.
+- Avoid logging private prompts, memories, tokens, or API keys.
+- Define retention and deletion behaviour for conversations and memories.
+- Before public deployment, review CORS, rate limits, request-size limits, timeouts, retries, HTTPS, and abuse controls.
 
-## Security decisions
+## Current Limitations
 
-- External API credentials stay server-side.
-- Supabase Row Level Security protects private application data.
-- The browser receives only a short-lived auth token.
-- Markdown output is sanitized before rendering.
-- Memory extraction is conservative and avoids credential-shaped content.
+The current project documentation notes the following limitations:
 
-## Current limitations
+- Memory retrieval uses bounded lexical relevance rather than vector embeddings.
+- Document ingestion stores chunks but does not yet implement semantic embedding-based search.
+- The application is intended primarily for personal/private use rather than as a complete multi-tenant SaaS product.
+- Production readiness depends on deployment-specific authentication, database policies, secret management, monitoring, and testing.
 
-- Memory retrieval currently uses bounded lexical relevance rather than vector embeddings.
-- Document ingestion stores chunks but does not yet perform semantic embedding/search.
-- The application is designed primarily as a personal/private assistant rather than a multi-tenant SaaS product.
+## Potential Improvements
 
-## Roadmap
+- Add automated unit and integration tests for API routes, authentication, memory, and provider failures.
+- Add semantic retrieval for memory and document search, then evaluate retrieval quality.
+- Add speech-to-text input and more robust voice-interaction handling.
+- Add rate limits, request-size limits, timeouts, and retries for external providers.
+- Track latency, usage, and provider failures without logging private content.
+- Improve document upload, parsing, and retrieval workflows.
+- Add a repeatable deployment guide and continuous-integration checks.
 
-- Semantic retrieval with embeddings
-- Speech-to-text input
-- Better document analysis and file uploads
-- Automated tests and CI
-- Usage/token analytics
-- Production deployment hardening
+## Troubleshooting
 
-## License
+**AI responses fail:** Verify the OpenRouter key, selected model, provider availability, and backend logs. Never include credentials in issue reports.
 
-No license is currently specified. Add one before distributing the project for reuse.
+**Voice generation fails:** Check the ElevenLabs key, voice ID, account limits, and backend network access.
+
+**Authentication or data access fails:** Confirm Supabase configuration, schema setup, session handling, and the relevant RLS policies.
+
+**Conversations or memories do not persist:** Confirm the required database tables exist, requests reach Supabase, and the active user has the intended permissions.
+
+**The UI cannot reach the backend:** Verify the startup output, frontend API URL, browser console, and CORS settings.
+
+## Licence
+
+The repository currently does not specify a licence. Until a licence is added, do not assume that others are permitted to redistribute or reuse the project. Add an appropriate licence if you intend to publish it for open-source reuse.
 
 ## Author
 
-**Ruben Joemon** — [@Rubenjoe](https://github.com/Rubenjoe)
+**Ruben Joemon** — [GitHub](https://github.com/Rubenjoe)
+
+---
+
+A hands-on project exploring full-stack application development, LLM integration, conversation persistence, memory retrieval, authentication, and voice interfaces.
