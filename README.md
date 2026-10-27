@@ -1,97 +1,163 @@
-# Celcia AI — Personal AI Assistant
+<div align="center">
 
-Celcia AI is a full-stack personal AI assistant built around conversational AI, persistent chat history, long-term memory, authentication, and voice generation. It combines a browser interface with a FastAPI backend and external AI services to demonstrate the engineering involved in building a complete AI product beyond a simple LLM API call.
+# Celcia AI
 
-**Stack:** Python · FastAPI · HTML · CSS · JavaScript · OpenRouter · Supabase · ElevenLabs
+### Personal AI Assistant with Memory, Chat History, and Voice
 
-> **Project status:** Personal / private assistant. Review authentication, database policies, and deployment configuration before exposing an instance publicly.
+A full-stack AI assistant built with FastAPI and a responsive browser interface. Chat with configurable language models, persist conversations, retrieve relevant memories, and generate spoken responses.
 
-## Features
+![Status](https://img.shields.io/badge/status-active%20development-blue)
+![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB)
+![Backend](https://img.shields.io/badge/Backend-FastAPI-009688)
+![AI Providers](https://img.shields.io/badge/AI-OpenRouter%20%7C%20NVIDIA%20NIM-purple)
+![Database](https://img.shields.io/badge/Database-Supabase-3ECF8E)
+![License](https://img.shields.io/badge/license-MIT-green)
 
-- **AI conversations:** Generate responses through OpenRouter with a configurable model.
-- **Persistent chat history:** Store and retrieve conversations using Supabase.
-- **Authentication and access control:** Integrate Supabase authentication and Row Level Security (RLS) for application data.
-- **Long-term memory:** Store selected memories and retrieve relevant items using bounded lexical relevance.
-- **Voice output:** Convert assistant responses to speech through ElevenLabs.
-- **Conversation management:** Create chats, switch between conversations, and revisit saved messages.
-- **Response actions:** Copy, regenerate, or listen to assistant responses.
-- **Markdown rendering:** Present structured assistant responses with sanitisation before rendering.
-- **Responsive interface:** Dark-themed browser UI designed for desktop and mobile.
-- **Backend integrations:** Keep LLM and voice provider calls behind a FastAPI service rather than exposing provider credentials in the browser.
+[Features](#-features) · [Architecture](#-architecture) · [Setup](#-getting-started) · [Configuration](#-configuration) · [API](#-api-overview)
 
-## Architecture
+`</div>
+
+---
+
+## 📖 Table of Contents
+
+- [Overview](#-overview)
+- [Features](#-features)
+- [Architecture](#-architecture)
+- [Technology Stack](#-technology-stack)
+- [Repository Structure](#-repository-structure)
+- [Prerequisites](#-prerequisites)
+- [Getting Started](#-getting-started)
+- [Configuration](#-configuration)
+- [Using Celcia AI](#-using-celcia-ai)
+- [API Overview](#-api-overview)
+- [Security and Privacy](#-security-and-privacy)
+- [Current Limitations](#-current-limitations)
+- [Troubleshooting](#-troubleshooting)
+- [Roadmap](#-roadmap)
+- [License](#-license)
+- [Author](#-author)
+
+---
+
+## 🧭 Overview
+
+**Celcia AI** is a personal AI assistant that combines conversational AI with the application features needed for a usable product: authentication, saved conversations, long-term memory, document handling, and voice output.
+
+Instead of putting provider calls directly in the browser, the app uses a **FastAPI backend** to coordinate chat requests and integrations. The AI provider can be configured to use **NVIDIA NIM** or **OpenRouter**, while voice generation can use **ElevenLabs** or the configured NVIDIA NIM text-to-speech model.
+
+The project is intended primarily for personal/private use and as a full-stack AI application project. Deployment security and hosted provider/database flows should be verified for the environment in which it is run.
+
+## ✨ Features
+
+| Feature | Description |
+|---|---|
+| 💬 **AI conversations** | Send messages to a configurable LLM provider through the backend. |
+| 🧠 **Long-term memory** | Store selected memories and retrieve relevant context using bounded relevance-based matching. |
+| 🗂️ **Persistent chat history** | Save and revisit conversations using Supabase-backed persistence. |
+| 🔐 **Authentication** | Provide authenticated access and owner-oriented configuration for private use. |
+| 🔊 **Voice output** | Generate speech from assistant responses through ElevenLabs or supported NVIDIA NIM TTS configuration. |
+| 📄 **Document handling** | Support document-related workflows and text extraction utilities for PDF and DOCX formats. |
+| 🔁 **Conversation controls** | Switch between conversations, create new chats, copy responses, regenerate, and listen. |
+| 📝 **Markdown responses** | Display structured assistant answers with sanitisation before rendering. |
+| 📱 **Responsive interface** | Dark-themed browser UI designed for desktop and mobile. |
+| 🔌 **Provider configuration** | Choose supported AI and voice providers through environment settings. |
+
+## 🏗️ Architecture
+
+### High-Level System Diagram
 
 ```text
-┌────────────────────────────┐
-│      Browser Interface     │
-│    HTML / CSS / JavaScript │
-└──────────────┬─────────────┘
-               │ HTTP requests
-               ▼
-┌────────────────────────────┐
-│          FastAPI           │
-│ Auth · Chat · Memory       │
-│ Conversations · Voice      │
-└───────┬─────────┬──────────┘
-        │         │
-        ▼         ▼
-┌────────────┐ ┌────────────────┐
-│ OpenRouter │ │    Supabase    │
-│ LLM calls  │ │ Auth + Postgres│
-└────────────┘ └────────────────┘
-        │
-        ▼
-┌────────────────────────────┐
-│          ElevenLabs        │
-│         Text-to-Speech     │
-└────────────────────────────┘
+┌──────────────────────────────────────┐
+│           Browser UI                 │
+│      HTML / CSS / JavaScript         │
+│ Chat · History · Memory · Voice      │
+└──────────────────┬───────────────────┘
+                   │ HTTP / JSON
+                   ▼
+┌──────────────────────────────────────┐
+│             FastAPI                  │
+│ Auth · Chat · Context · Documents    │
+│ Conversations · Memory · Voice       │
+└─────────┬─────────────┬──────────────┘
+          │             │
+          ▼             ▼
+┌────────────────┐  ┌──────────────────┐
+│ AI Provider    │  │ Supabase         │
+│ OpenRouter or  │  │ Auth + Postgres  │
+│ NVIDIA NIM     │  │ persistent data  │
+└────────────────┘  └──────────────────┘
+          │
+          ▼
+┌──────────────────────────────────────┐
+│ Voice provider: ElevenLabs or NIM TTS│
+└──────────────────────────────────────┘
 ```
 
-This is a high-level view of the documented integrations. Exact behaviour depends on the active configuration and provider settings.
+### Request flow
 
-## Technology Stack
+1. The browser sends a request to the FastAPI backend.
+2. The backend validates the request and authentication context.
+3. Chat context and relevant saved memory are assembled where applicable.
+4. The selected AI provider generates a response.
+5. The application returns the response and persists supported conversation data through its configured storage.
+6. When requested, the voice route sends text to the selected text-to-speech provider.
+
+The diagram is a conceptual overview. Exact behaviour depends on environment settings, configured providers, and the backend implementation.
+
+## 🛠️ Technology Stack
 
 | Layer | Technology |
 |---|---|
 | Frontend | HTML5, CSS3, JavaScript |
-| Backend | Python, FastAPI |
-| Language-model gateway | OpenRouter |
+| Backend API | Python, FastAPI, Uvicorn |
+| LLM provider integration | OpenRouter, NVIDIA NIM through OpenAI-compatible APIs |
 | Authentication and persistence | Supabase |
-| Database | PostgreSQL via Supabase |
-| Voice generation | ElevenLabs |
-| API communication | HTTP / JSON |
-| Local configuration | Environment variables |
+| Data storage | PostgreSQL through Supabase |
+| Voice generation | ElevenLabs, NVIDIA NIM TTS configuration |
+| Document utilities | pypdf, python-docx |
+| Configuration | python-dotenv |
 
-## Repository Structure
+## 🧩 Repository Structure
 
 ```text
 GenAiChat/
-├── index.html             # Browser interface
-├── style.css              # Layout and visual styling
-├── script.js              # Frontend interaction logic
+├── index.html              # Browser application
+├── style.css               # UI layout and themes
+├── script.js               # Frontend behaviour
 ├── backend/
-│   ├── main.py            # FastAPI application and routes
-│   ├── ai.py              # LLM integration
-│   └── voice.py           # Voice-generation integration
+│   ├── main.py             # FastAPI routes and request orchestration
+│   ├── ai.py               # LLM provider integration
+│   ├── config.py           # Environment and provider configuration
+│   ├── context.py          # Context preparation
+│   ├── documents.py        # Document-related helpers
+│   ├── memory.py           # Long-term memory logic
+│   ├── storage.py          # Persistence helpers
+│   └── voice.py            # Text-to-speech integration
+├── api/
+│   └── index.py            # Deployment entry point
 ├── supabase/
-│   └── schema.sql         # Database schema
-├── .env.example           # Environment variable template
-├── requirements.txt       # Python dependencies
-├── .gitignore
+│   └── schema.sql          # Database schema
+├── .env.example            # Safe configuration template
+├── requirements.txt        # Python dependencies
+├── LICENSE                 # MIT license
 └── README.md
 ```
 
-## Requirements
+## ✅ Prerequisites
 
-- Python 3.10 or newer
-- Git
-- A Supabase project with the required schema and authentication configuration
-- An OpenRouter API key and a model available to that key
-- An ElevenLabs API key and voice ID for text-to-speech
+Before starting, make sure you have:
 
-Voice generation requires ElevenLabs configuration. Check the backend implementation and `.env.example` for the exact variables required by your local version.
+- **Python 3.10 or newer**
+- **Git**
+- A Supabase project for authentication and persistent data
+- An **OpenRouter API key** or **NVIDIA NIM API key**
+- An **ElevenLabs API key and voice ID** if using ElevenLabs voice output
+- A compatible NVIDIA NIM TTS configuration if using NIM for voice generation
 
-## Getting Started
+You only need credentials for the providers selected in your environment configuration.
+
+## 🚀 Getting Started
 
 ### 1. Clone the repository
 
@@ -100,7 +166,7 @@ git clone https://github.com/Rubenjoe/GenAiChat.git
 cd GenAiChat
 ```
 
-### 2. Create and activate a virtual environment
+### 2. Create a virtual environment
 
 **Windows PowerShell**
 
@@ -123,113 +189,168 @@ python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 ```
 
-### 4. Configure environment variables
+### 4. Create your environment file
 
-Copy `.env.example` to `.env` and use the exact variable names defined in that file. The project documentation includes variables in this general form:
+Copy `.env.example` to `.env` and set the required values.
 
-```env
-OPENROUTER_API_KEY=your_openrouter_api_key
-OPENROUTER_MODEL=openrouter/free
-ELEVENLABS_API_KEY=your_elevenlabs_api_key
-ELEVENLABS_VOICE_ID=your_elevenlabs_voice_id
-SUPABASE_URL=your_supabase_project_url
-SUPABASE_ANON_KEY=your_supabase_anon_key
-SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
-CELCIA_OWNER_EMAIL=your_auth_email
+**Windows PowerShell**
+
+```powershell
+Copy-Item .env.example .env
 ```
 
-The values above are placeholders, not working credentials. Confirm the required variables and defaults in the repository's `.env.example`.
+**macOS / Linux**
 
-**Security:** Never commit `.env`, provider keys, database passwords, or Supabase service-role credentials. Keep privileged credentials on the server only. If a secret is committed accidentally, revoke and rotate it with the provider.
+```bash
+cp .env.example .env
+```
 
-### 5. Prepare Supabase
+### 5. Configure Supabase
 
 1. Create or select a Supabase project.
-2. Review `supabase/schema.sql` and apply the schema to the intended development database.
-3. Check the authentication settings and Row Level Security policies for application tables.
-4. Configure the project URL and keys in the local environment.
-5. Test using a non-production account before entering real data.
+2. Review `supabase/schema.sql` and apply the schema to the intended development project.
+3. Verify authentication configuration and Row Level Security policies for the tables used by the app.
+4. Set `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and the server-only `SUPABASE_SERVICE_ROLE_KEY` in `.env`.
+5. Set `CELCIA_OWNER_EMAIL` and `APP_URL` according to your environment.
+6. Test authentication and persistence with a non-production account before using private data.
 
-The presence of RLS support does not by itself guarantee secure access rules. Review the policies that are actually applied to your database.
+Never expose the service-role key in browser code or a public variable.
 
 ### 6. Start the application
 
-Run the backend from the repository root:
+Run from the repository root:
 
 ```bash
 python backend/main.py
 ```
 
-The repository documentation uses `http://localhost:8000` as the local address. Use the address and port printed by the application if they differ.
+Open the local URL printed by the backend. The documented development URL is:
 
-## Documented API Surface
+```text
+http://localhost:8000
+```
 
-The project documents these routes. Confirm exact request schemas, supported methods, and authentication behaviour in the current backend implementation.
+If the application reports a different host or port, use that address.
+
+## ⚙️ Configuration
+
+The exact required variables are documented in `.env.example`. The main settings include:
+
+### AI provider
+
+| Variable | Purpose |
+|---|---|
+| `AI_PROVIDER` | Selects `nim` or `openrouter` according to the project configuration. |
+| `NIM_API_KEY` | NVIDIA NIM API key when using NIM. |
+| `NIM_CHAT_MODEL` | NVIDIA NIM chat model identifier. |
+| `NIM_BASE_URL` | NVIDIA NIM OpenAI-compatible API base URL. |
+| `OPENROUTER_API_KEY` | OpenRouter API key when using OpenRouter. |
+| `OPENROUTER_MODEL` | Model identifier requested from OpenRouter. |
+
+### Voice provider
+
+| Variable | Purpose |
+|---|---|
+| `VOICE_PROVIDER` | Selects the configured voice provider. |
+| `ELEVENLABS_API_KEY` | API key for ElevenLabs voice generation. |
+| `ELEVENLABS_VOICE_ID` | Voice identifier used by ElevenLabs. |
+| `NIM_TTS_MODEL` | NVIDIA NIM text-to-speech model. |
+| `NIM_TTS_VOICE` | Voice setting for NIM TTS. |
+
+### Supabase and application
+
+| Variable | Purpose |
+|---|---|
+| `SUPABASE_URL` | Supabase project URL. |
+| `SUPABASE_ANON_KEY` | Public/anonymous Supabase key used by the application configuration. |
+| `SUPABASE_SERVICE_ROLE_KEY` | Privileged server-side key; keep secret and never send to the browser. |
+| `CELCIA_OWNER_EMAIL` | Configured owner email used by the application. |
+| `APP_URL` | Canonical application URL used by the app configuration. |
+
+Use the precise names and comments in `.env.example` as the source of truth. Values shown in that template are placeholders, not credentials.
+
+## 🧪 Using Celcia AI
+
+1. Start the backend and open the application in your browser.
+2. Sign in using the account and configuration for your environment.
+3. Start a conversation and send a prompt.
+4. Switch between saved conversations or create a new chat.
+5. Use response actions such as copy, regenerate, or listen where available.
+6. Configure a supported provider and credentials to enable its AI or voice features.
+7. Try document and memory workflows using non-sensitive sample content before using private files.
+
+Feature availability depends on valid provider credentials, Supabase configuration, and the deployed application settings.
+
+## 📝 API Overview
+
+The project exposes backend functionality for chat, voice, authentication, profile/session, conversation, memory, and document workflows. Documented endpoints include:
 
 | Method | Endpoint | Purpose |
 |---|---|---|
-| `POST` | `/api/chat` | Generate an authenticated AI response |
-| `POST` | `/api/voice` | Generate speech from text |
-| `GET` | `/api/health` | Health check |
-| `POST` | `/api/auth/login` | Authenticate a user |
-| `GET` | `/api/auth/session` | Retrieve session information |
-| `GET`, `PUT` | `/api/profile` | Read or update profile data |
-| Related methods | `/api/memories` | Memory management |
-| Related methods | `/api/conversations` | Conversation retrieval and management |
-| Related methods | `/api/documents` | Document content and metadata operations |
+| `POST` | `/api/chat` | Generate an authenticated AI response. |
+| `POST` | `/api/voice` | Generate speech from text. |
+| `GET` | `/api/health` | Health check. |
+| `POST` | `/api/auth/login` | Authenticate a user. |
+| `GET` | `/api/auth/session` | Retrieve the current session. |
+| `GET` / `PUT` | `/api/profile` | Read or update profile data. |
+| `/api/memories` | Memory-related operations. |
+| `/api/conversations` | Conversation retrieval and management. |
+| `/api/documents` | Document content and metadata operations. |
 
-## Security and Privacy
+For exact request schemas and supported HTTP methods, use the current route definitions in `backend/main.py` and related backend modules as the source of truth.
 
-The application handles private conversations and external service credentials, so security needs to be considered before deployment.
+## 🔐 Security and Privacy
 
-- Keep OpenRouter, ElevenLabs, and privileged Supabase credentials on the server.
-- Never commit environment files, access tokens, or passwords.
-- Verify authentication and authorisation on every route that exposes private user data.
-- Review RLS policies to ensure users can access only the data they are permitted to read or modify.
-- Sanitise Markdown output and do not render model output as trusted HTML.
-- Avoid logging private prompts, memories, tokens, or API keys.
-- Define retention and deletion behaviour for conversations and memories.
-- Before public deployment, review CORS, rate limits, request-size limits, timeouts, retries, HTTPS, and abuse controls.
+- Keep all provider keys and privileged Supabase credentials on the server.
+- Never commit `.env`, access tokens, passwords, or database secrets.
+- Review and test Supabase Row Level Security policies; do not assume the presence of RLS alone guarantees correct permissions.
+- Ensure every private-data route performs authentication and authorisation checks.
+- Sanitise Markdown before rendering and do not treat model-generated text as trusted HTML.
+- Avoid logging API keys, authentication tokens, private prompts, or stored memories.
+- Use non-sensitive test documents when evaluating extraction and memory features.
+- Before public deployment, review HTTPS, CORS, rate limiting, request validation, error handling, retention, and deletion workflows.
 
-## Current Limitations
-
-The current project documentation notes the following limitations:
+## ⚠️ Current Limitations
 
 - Memory retrieval uses bounded lexical relevance rather than vector embeddings.
-- Document ingestion stores chunks but does not yet implement semantic embedding-based search.
-- The application is intended primarily for personal/private use rather than as a complete multi-tenant SaaS product.
-- Production readiness depends on deployment-specific authentication, database policies, secret management, monitoring, and testing.
+- Document chunks may be stored, but the current project documentation does not describe semantic embedding-based retrieval as implemented.
+- The app is designed primarily for personal/private use rather than a complete multi-tenant SaaS deployment.
+- Successful local startup does not establish that hosted authentication, data persistence, provider credentials, or deployment security are correctly configured.
 
-## Potential Improvements
+## 🩹 Troubleshooting
 
-- Add automated unit and integration tests for API routes, authentication, memory, and provider failures.
-- Add semantic retrieval for memory and document search, then evaluate retrieval quality.
-- Add speech-to-text input and more robust voice-interaction handling.
-- Add rate limits, request-size limits, timeouts, and retries for external providers.
-- Track latency, usage, and provider failures without logging private content.
-- Improve document upload, parsing, and retrieval workflows.
-- Add a repeatable deployment guide and continuous-integration checks.
+| Problem | Checks |
+|---|---|
+| AI responses fail | Verify the selected provider, API key, model identifier, network access, and backend logs. |
+| Voice generation fails | Check `VOICE_PROVIDER`, provider credentials, voice ID/model, and account limits. |
+| Login or session errors | Check Supabase URL/key, schema, authentication configuration, and owner email settings. |
+| Chats or memories do not persist | Verify schema, database access, user permissions, and backend errors. |
+| UI cannot reach the API | Confirm backend startup, local URL, browser console, and CORS configuration. |
+| Document processing fails | Check file type, package installation, file size, and supported format. |
 
-## Troubleshooting
+Never include real credentials in logs, screenshots, issue reports, or chat messages.
 
-**AI responses fail:** Verify the OpenRouter key, selected model, provider availability, and backend logs. Never include credentials in issue reports.
+## 🗺️ Roadmap
 
-**Voice generation fails:** Check the ElevenLabs key, voice ID, account limits, and backend network access.
+Possible next steps include:
 
-**Authentication or data access fails:** Confirm Supabase configuration, schema setup, session handling, and the relevant RLS policies.
+- Semantic memory and document retrieval with evaluated embeddings.
+- Speech-to-text input and improved voice conversation handling.
+- Automated tests for authentication, persistence, provider errors, and document parsing.
+- Better rate limits, provider timeouts, retries, and usage metrics.
+- A deployment guide with environment-specific security checks.
+- Clearer data export and deletion workflows.
 
-**Conversations or memories do not persist:** Confirm the required database tables exist, requests reach Supabase, and the active user has the intended permissions.
+## 📄 License
 
-**The UI cannot reach the backend:** Verify the startup output, frontend API URL, browser console, and CORS settings.
+This project is licensed under the **MIT License**. See the [LICENSE](LICENSE) file for details.
 
-## Licence
+The MIT license applies to project code owned by this repository's copyright holder. Third-party services, dependencies, datasets, and external assets remain subject to their respective terms and licences.
 
-The repository currently does not specify a licence. Until a licence is added, do not assume that others are permitted to redistribute or reuse the project. Add an appropriate licence if you intend to publish it for open-source reuse.
+## 👤 Author
 
-## Author
-
-**Ruben Joemon** — [GitHub](https://github.com/Rubenjoe)
+**Ruben Joemon** · [GitHub](https://github.com/Rubenjoe)
 
 ---
 
-A hands-on project exploring full-stack application development, LLM integration, conversation persistence, memory retrieval, authentication, and voice interfaces.
+Built as a hands-on project exploring full-stack development, LLM integration, persistent conversations, memory retrieval, authentication, document workflows, and voice interfaces.
